@@ -36,9 +36,9 @@ public user
 
 3)Problem/question
 
-	1)	should them post their github link? it will become public if they do, so what the purpose of selling the code?
-	2)	lect if lect choose tehir own student it can be fraud, so maybe only admin can add studnet base on the list
-	3) lect and student cant see other project (not buying)? this to make sure that lect and studnet have 100% control of their project 
+	1) should them post their github link? it will become public if they do, so what the purpose of selling the code?
+	2) if lect choose tehir own student it can be fraud, so maybe only admin can add studnet base on the list
+	3) lect and student cant see other project if they not buying. this to make sure that lect and student have 100% control of their project 
 	4)
 
 

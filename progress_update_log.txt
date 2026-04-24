@@ -1,0 +1,50 @@
+24/4
+1) what are we gonna develope ?
+
+a web base system where all student gonna upload their FYP at. student can first upload their project proposal and will be review by lecturer. after complete FYP stuent can upload their  code file , project final report, prospsal(maybe) , poster , slides and github link (maybe)
+
+lecturer can review mark etc project that under their supervison not others lect project. 
+
+public listed project for anyone to buy with payment gateway
+
+
+2)So what admin, lect and student can do?  public user maybe?
+
+admin
+-add lecturer
+-add student base on - academic year 
+		     		 - section 
+- assign student to their lect/supervisor
+- manage sales - see sold value and every entity partition 
+
+lecturer 
+- choose student under them
+- assign them group 
+- review proposal
+- marking project
+- can see lecturer earn by selling project
+
+student
+- have unique login for each student 
+- upload proposal
+- if upload file auto in group assign by lecturer
+- can see own earn by selling project
+
+public user 
+- buy report, project etc
+- see project poster/overview 
+
+3)Problem/question
+
+	1)	should them post their github link? it will become public if they do, so what the purpose of selling the code?
+	2)	lect if lect choose tehir own student it can be fraud, so maybe only admin can add studnet base on the list
+	3) lect and student cant see other project (not buying)? this to make sure that lect and studnet have 100% control of their project 
+	4)
+
+
+4) Ask supervisor
+	1) do we need to do public user? 
+	2) lect choose their own student or admin will assign to them 
+	3) 
+
+--------------------------------------------------------------

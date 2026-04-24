@@ -1,3 +1,3 @@
 # FYP-Submission-Management-System
 Haii 
-    ![alt text](image-1.png)
+![alt text](image-1.png)

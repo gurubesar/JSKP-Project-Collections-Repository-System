@@ -47,4 +47,28 @@ public user
 	2) lect choose their own student or admin will assign to them 
 	3) 
 
+5) System logic
+
+	1) Database
+		use mysql
+		a) login credential 
+		b) upload file 
+		c) database retation table 
+			users (id, role, email, password)
+			students (user_id, matric, course)
+			lecturers (user_id, department)
+			projects (id, groups id, title, description, status)
+			groups (id, lecturer_id group_name, project_id )
+			group_members (group_id, student_id)
+			submissions (id, project_id, file_path, type -- proposal / report / code / poster / slides version, uploaded_at)
+			grades (project_id, lecturer_id, marks)
+	
+	2) programing laguange
+		1) HTML
+		2) CSS
+		3) JavaScript
+		4) PHP
+
+	3) ui/ux 
+	 to be continue.....
 --------------------------------------------------------------

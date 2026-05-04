@@ -14,7 +14,7 @@ $adminInitial = strtoupper(substr($adminName, 0, 1)) ?: 'A';
     <style>
         :root {
             --admin-sidebar: #800020;
-            --admin-sidebar-dark: #560016;
+            --admin-sidebar-dark: #5f0018;
             --admin-gold: #d6a01d;
             --admin-bg: #f4f7fb;
             --admin-card: #ffffff;
@@ -42,42 +42,39 @@ $adminInitial = strtoupper(substr($adminName, 0, 1)) ?: 'A';
             z-index: 1040;
             width: 280px;
             overflow-y: auto;
-            background: linear-gradient(180deg, var(--admin-sidebar) 0%, var(--admin-sidebar-dark) 100%);
-            color: #fff;
-            box-shadow: 12px 0 32px rgba(86, 0, 22, 0.22);
+            background: linear-gradient(180deg, #fffcf4 0%, #f8f0df 100%);
+            color: var(--admin-sidebar);
+            border-right: 1px solid rgba(128, 0, 32, 0.12);
+            box-shadow: 12px 0 32px rgba(86, 0, 22, 0.1);
         }
 
         .sidebar-brand {
             display: flex;
             align-items: center;
             gap: 12px;
-            min-height: 92px;
+            min-height: 106px;
             padding: 24px 22px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+            border-bottom: 1px solid rgba(128, 0, 32, 0.12);
         }
 
         .utm-logo {
-            width: 56px;
-            aspect-ratio: 1;
-            border-radius: 16px;
-            display: grid;
-            place-items: center;
-            background: rgba(214, 160, 29, 0.18);
-            border: 1px solid rgba(214, 160, 29, 0.45);
-            color: var(--admin-gold);
-            font-weight: 800;
+            width: 64px;
+            height: 64px;
+            object-fit: contain;
+            flex: 0 0 auto;
+            filter: drop-shadow(0 8px 14px rgba(128, 0, 32, 0.14));
         }
 
         .brand-title {
             margin: 0;
             font-size: 1.2rem;
             font-weight: 800;
-            color: #f4c542;
+            color: var(--admin-sidebar);
         }
 
         .brand-subtitle {
             display: block;
-            color: rgba(255, 255, 255, 0.72);
+            color: #7d5b20;
             font-size: 0.76rem;
             line-height: 1.3;
         }
@@ -95,7 +92,7 @@ $adminInitial = strtoupper(substr($adminName, 0, 1)) ?: 'A';
             min-height: 46px;
             padding: 11px 14px;
             border-radius: 12px;
-            color: rgba(255, 255, 255, 0.82);
+            color: #6f273a;
             text-decoration: none;
             font-weight: 600;
             transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
@@ -104,7 +101,7 @@ $adminInitial = strtoupper(substr($adminName, 0, 1)) ?: 'A';
         .sidebar-link:hover,
         .sidebar-link.active {
             background: var(--admin-gold);
-            color: #2a1600;
+            color: #2b1800;
             transform: translateX(2px);
         }
 

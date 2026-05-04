@@ -209,9 +209,10 @@ $assignedStudents = count($studentMap);
             inset: 0 auto 0 0;
             width: 270px;
             overflow-y: auto;
-            background: linear-gradient(180deg, var(--lecturer-maroon) 0%, var(--lecturer-maroon-dark) 100%);
-            color: #fff;
-            box-shadow: 12px 0 32px rgba(84, 0, 20, 0.24);
+            background: linear-gradient(180deg, #fffcf4 0%, #f8f0df 100%);
+            color: var(--lecturer-maroon);
+            border-right: 1px solid rgba(128, 0, 32, 0.12);
+            box-shadow: 12px 0 32px rgba(84, 0, 20, 0.1);
         }
 
         .brand {
@@ -220,31 +221,27 @@ $assignedStudents = count($studentMap);
             display: flex;
             align-items: center;
             gap: 12px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+            border-bottom: 1px solid rgba(128, 0, 32, 0.12);
         }
 
         .brand-mark {
-            width: 58px;
-            aspect-ratio: 1;
-            border-radius: 16px;
-            display: grid;
-            place-items: center;
-            background: rgba(220, 165, 28, 0.18);
-            border: 1px solid rgba(220, 165, 28, 0.5);
-            color: #f5c84b;
-            font-weight: 800;
+            width: 64px;
+            height: 64px;
+            object-fit: contain;
+            flex: 0 0 auto;
+            filter: drop-shadow(0 8px 14px rgba(128, 0, 32, 0.14));
         }
 
         .brand-title {
             margin: 0;
-            color: #f5c84b;
+            color: var(--lecturer-maroon);
             font-weight: 800;
             font-size: 1.25rem;
             line-height: 1;
         }
 
         .brand-subtitle {
-            color: rgba(255, 255, 255, 0.72);
+            color: #7d5b20;
             font-size: 0.76rem;
             line-height: 1.35;
         }
@@ -262,7 +259,7 @@ $assignedStudents = count($studentMap);
             min-height: 46px;
             padding: 11px 14px;
             border-radius: 12px;
-            color: rgba(255, 255, 255, 0.84);
+            color: #6f273a;
             font-weight: 700;
             text-decoration: none;
         }
@@ -276,7 +273,7 @@ $assignedStudents = count($studentMap);
         .sidebar-footer {
             margin-top: auto;
             padding: 16px 14px 22px;
-            border-top: 1px solid rgba(255, 255, 255, 0.12);
+            border-top: 1px solid rgba(128, 0, 32, 0.12);
         }
 
         .lecturer-main {
@@ -523,7 +520,7 @@ $assignedStudents = count($studentMap);
 <div class="lecturer-shell">
     <aside class="sidebar d-flex flex-column">
         <div class="brand">
-            <div class="brand-mark">UTM</div>
+            <img class="brand-mark" src="assets/utm-logo.png" alt="UTM logo">
             <div>
                 <p class="brand-title">UTM</p>
                 <div class="brand-subtitle">Universiti Teknologi Malaysia<br>Academic Review</div>
@@ -566,10 +563,10 @@ $assignedStudents = count($studentMap);
                 <div class="avatar"><?= e($lecturerInitials) ?></div>
                 <div class="min-w-0">
                     <div class="fw-bold text-truncate"><?= e($lecturerName) ?></div>
-                    <small class="text-white-50">Lecturer</small>
+                    <small class="text-muted">Lecturer</small>
                 </div>
             </div>
-            <a class="text-white-50 small" href="logout.php">Logout</a>
+            <a class="text-muted small" href="logout.php">Logout</a>
         </div>
     </aside>
 

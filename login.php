@@ -121,14 +121,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         .brand-badge {
             width: 64px;
-            aspect-ratio: 1;
-            border-radius: 18px;
-            background: var(--utm-maroon);
-            color: var(--utm-white);
-            display: grid;
-            place-items: center;
-            font-weight: 800;
-            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15);
+            height: 64px;
+            object-fit: contain;
+            filter: drop-shadow(0 10px 16px rgba(128, 0, 32, 0.18));
         }
 
         .login-subtitle {
@@ -229,7 +224,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <p class="login-label">Sign In</p>
                     <h1 class="login-title">UTM Submission Portal</h1>
                 </div>
-                <div class="brand-badge">UTM</div>
+                <img class="brand-badge" src="assets/utm-logo.png" alt="UTM logo">
             </div>
 
             <div class="login-subtitle">Access your Admin, Lecturer or Student dashboard.</div>

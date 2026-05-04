@@ -5,18 +5,29 @@ $driver = getenv('DB_CONNECTION') ?: 'pgsql';
 
 try {
     if ($driver === 'pgsql' || $driver === 'postgres' || $driver === 'postgresql') {
-        $host = getenv('DB_HOST') ?: '127.0.0.1';
-        $port = getenv('DB_PORT') ?: '5432';
         $database = getenv('DB_DATABASE') ?: 'fyp_submission_system';
         $username = getenv('DB_USERNAME') ?: 'postgres';
-        $password = getenv('DB_PASSWORD') ?: '';
-
-        $dsn = "pgsql:host={$host};port={$port};dbname={$database}";
-        $db = new PDO($dsn, $username, $password, [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES => false,
-        ]);
+        $host = getenv('DB_HOST');
+        
+        // Use Unix socket if no host specified, otherwise use TCP connection
+        if ($host) {
+            $port = getenv('DB_PORT') ?: '5432';
+            $password = getenv('DB_PASSWORD') ?: 'Nigaman00';
+            $dsn = "pgsql:host={$host};port={$port};dbname={$database}";
+            $db = new PDO($dsn, $username, $password, [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES => false,
+            ]);
+        } else {
+            // Use Unix socket (peer authentication, no password needed)
+            $dsn = "pgsql:dbname={$database}";
+            $db = new PDO($dsn, $username, '', [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES => false,
+            ]);
+        }
     } elseif ($driver === 'mysql') {
         $host = getenv('DB_HOST') ?: '127.0.0.1';
         $port = getenv('DB_PORT') ?: '3306';

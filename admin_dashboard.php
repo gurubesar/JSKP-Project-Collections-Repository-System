@@ -1,34 +1,59 @@
-<!DOCTYPE html>
+<?php
+session_start();
+?><!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>UTM Admin Portal</title>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="utm-theme.css">
 <style>
   :root {
-    --crimson: #7B1C2E;
-    --crimson-dark: #5a1322;
-    --crimson-light: #9d2340;
-    --gold: #C9A84C;
-    --gold-light: #e2c272;
-    --gold-pale: #f5e9c8;
-    --bg: #f4f1ec;
-    --surface: #ffffff;
-    --surface2: #faf8f5;
-    --text: #1a1410;
-    --text-muted: #6b5f55;
-    --border: #e8e0d5;
-    --green: #2d7a4f;
-    --green-bg: #e8f5ee;
-    --orange: #c47a1e;
-    --orange-bg: #fdf3e3;
-    --red: #c0392b;
-    --red-bg: #fdecea;
-    --gray: #8a8078;
-    --gray-bg: #f0ede8;
-    --shadow: 0 2px 12px rgba(123,28,46,0.08);
-    --shadow-lg: 0 8px 32px rgba(123,28,46,0.14);
+    --utm-maroon: #800020;
+    --utm-maroon-dark: #5c0018;
+    --utm-maroon-light: #a21f40;
+    --utm-gold: #F2A900;
+    --utm-gold-light: #f7c94c;
+    --utm-gold-pale: #fff1b8;
+    --utm-bg: #f5f2ee;
+    --utm-surface: #ffffff;
+    --utm-surface-soft: #faf2eb;
+    --utm-text: #222222;
+    --utm-muted: #4a3d35;
+    --utm-border: #d8c7b3;
+    --utm-green: #2d7a4f;
+    --utm-green-bg: #e8f5ee;
+    --utm-orange: #c47a1e;
+    --utm-orange-bg: #fdf3e3;
+    --utm-red: #c0392b;
+    --utm-red-bg: #fdecea;
+    --utm-gray: #8a8078;
+    --utm-gray-bg: #f0ede8;
+    --utm-shadow: 0 2px 12px rgba(128,0,32,0.08);
+    --utm-shadow-lg: 0 8px 32px rgba(128,0,32,0.14);
+    --crimson: var(--utm-maroon);
+    --crimson-dark: var(--utm-maroon-dark);
+    --crimson-light: var(--utm-maroon-light);
+    --gold: var(--utm-gold);
+    --gold-light: var(--utm-gold-light);
+    --gold-pale: var(--utm-gold-pale);
+    --bg: var(--utm-bg);
+    --surface: var(--utm-surface);
+    --surface2: var(--utm-surface-soft);
+    --text: var(--utm-text);
+    --text-muted: var(--utm-muted);
+    --border: var(--utm-border);
+    --green: var(--utm-green);
+    --green-bg: var(--utm-green-bg);
+    --orange: var(--utm-orange);
+    --orange-bg: var(--utm-orange-bg);
+    --red: var(--utm-red);
+    --red-bg: var(--utm-red-bg);
+    --gray: var(--utm-gray);
+    --gray-bg: var(--utm-gray-bg);
+    --shadow: var(--utm-shadow);
+    --shadow-lg: var(--utm-shadow-lg);
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }

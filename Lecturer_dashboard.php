@@ -1,26 +1,48 @@
-<!DOCTYPE html>
+<?php
+session_start();
+?><!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>UTM Academic Project Review – Lecturer Portal</title>
 <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="utm-theme.css">
 <style>
   :root {
-    --utm-red: #8B0000;
-    --utm-gold: #C8973A;
-    --utm-dark: #1a0505;
-    --bg: #f5f2ee;
-    --card-bg: #ffffff;
-    --sidebar-bg: #6B0000;
-    --text: #1a0505;
-    --muted: #6b6560;
-    --border: #e0d9d0;
-    --pending: #e8a020;
-    --approved: #2e7d32;
-    --needs-revision: #c0392b;
-    --rejected: #555;
-    --transition: 0.22s cubic-bezier(.4,0,.2,1);
+    --utm-maroon: #800020;
+    --utm-maroon-dark: #5c0018;
+    --utm-maroon-light: #a21f40;
+    --utm-gold: #F2A900;
+    --utm-gold-light: #f7c94c;
+    --utm-gold-pale: #fff1b8;
+    --utm-dark: #222222;
+    --utm-bg: #f5f2ee;
+    --utm-surface: #ffffff;
+    --utm-surface-soft: #faf2eb;
+    --utm-sidebar: #6B0000;
+    --utm-text: #222222;
+    --utm-muted: #4a3d35;
+    --utm-border: #d8c7b3;
+    --utm-pending: #e8a020;
+    --utm-approved: #2e7d32;
+    --utm-needs-revision: #c0392b;
+    --utm-rejected: #555;
+    --utm-transition: 0.22s cubic-bezier(.4,0,.2,1);
+    --utm-red: var(--utm-maroon);
+    --utm-gold: var(--utm-gold);
+    --utm-dark: var(--utm-dark);
+    --bg: var(--utm-bg);
+    --card-bg: var(--utm-surface);
+    --sidebar-bg: var(--utm-sidebar);
+    --text: var(--utm-text);
+    --muted: var(--utm-muted);
+    --border: var(--utm-border);
+    --pending: var(--utm-pending);
+    --approved: var(--utm-approved);
+    --needs-revision: var(--utm-needs-revision);
+    --rejected: var(--utm-rejected);
+    --transition: var(--utm-transition);
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }

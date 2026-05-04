@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^php -l login\\.php && php -l db\\.php && php -l index\\.php && php -l logout\\.php$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}

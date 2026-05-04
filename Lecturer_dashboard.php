@@ -1,5 +1,9 @@
 <?php
 session_start();
+if (!isset($_SESSION['lecturer_logged_in']) || $_SESSION['lecturer_logged_in'] !== true) {
+    header('Location: login.php');
+    exit;
+}
 ?><!DOCTYPE html>
 <html lang="en">
 <head>
@@ -370,35 +374,8 @@ session_start();
 </head>
 <body>
 
-<!-- ═══════════ LOGIN ═══════════ -->
-<div id="login-page">
-  <div class="login-box">
-    <div class="login-logo">
-      <div class="login-logo-mark">UTM</div>
-      <div class="login-logo-text">
-        <h2>Universiti Teknologi Malaysia</h2>
-        <p>Academic Project Review System</p>
-      </div>
-    </div>
-    <h1>Lecturer Sign In</h1>
-    <p class="subtitle">Access your project review dashboard</p>
-    <div class="login-error" id="login-error">Invalid staff ID or password. Please try again.</div>
-    <div class="form-group">
-      <label>Staff ID / Email</label>
-      <input type="text" id="staff-id" placeholder="e.g. azman@utm.my" autocomplete="username">
-    </div>
-    <div class="form-group">
-      <label>Password</label>
-      <input type="password" id="password" placeholder="Enter your password" autocomplete="current-password">
-    </div>
-    <div class="forgot-link"><a href="#" onclick="showForgot(event)">Forgot password?</a></div>
-    <button class="btn-login" onclick="doLogin()">Sign In</button>
-    <p class="login-note">Use staff ID <strong>lecturer@utm.my</strong> and password <strong>utm1234</strong> to demo</p>
-  </div>
-</div>
-
 <!-- ═══════════ DASHBOARD ═══════════ -->
-<div id="dashboard-page" style="display:none; min-height:100vh; flex-direction:row;">
+<div id="dashboard-page">
 
   <!-- Sidebar -->
   <nav class="sidebar">
@@ -810,38 +787,6 @@ function showSection(sec, el) {
   if (sec==='grades') renderGrades();
 }
 
-// ── LOGIN ──
-function doLogin() {
-  const id = document.getElementById('staff-id').value.trim();
-  const pw = document.getElementById('password').value;
-  const err = document.getElementById('login-error');
-  if (id === 'lecturer@utm.my' && pw === 'utm1234') {
-    err.style.display = 'none';
-    document.getElementById('login-page').style.display = 'none';
-    document.getElementById('dashboard-page').style.display = 'flex';
-    renderCards();
-  } else {
-    err.style.display = 'block';
-  }
-}
-function doLogout() {
-  document.getElementById('dashboard-page').style.display = 'none';
-  document.getElementById('login-page').style.display = 'flex';
-  document.getElementById('staff-id').value = '';
-  document.getElementById('password').value = '';
-  document.getElementById('profile-dropdown').classList.remove('open');
-}
-function showForgot(e) { e.preventDefault(); showToast('Password reset link sent to your UTM email!', 'success'); }
-
-// ── PROFILE DROPDOWN ──
-function toggleProfile() {
-  document.getElementById('profile-dropdown').classList.toggle('open');
-}
-document.addEventListener('click', e => {
-  const dd = document.getElementById('profile-dropdown');
-  if (!e.target.closest('.user-chip') && !e.target.closest('.profile-dropdown')) dd.classList.remove('open');
-});
-
 // ── TOAST ──
 let toastTimer;
 function showToast(msg, type='success') {
@@ -853,12 +798,16 @@ function showToast(msg, type='success') {
 
 // ── KEYBOARD ──
 document.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && document.getElementById('login-page').style.display !== 'none') doLogin();
   if (e.key === 'Escape') { closeModal('comment-modal'); closeModal('marks-modal'); }
 });
 
 // Close modals on overlay click
 document.querySelectorAll('.modal-overlay').forEach(o => o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); }));
+
+// New doLogout function
+function doLogout() {
+  window.location.href = 'login.php'; // Or logout.php if it handles session destruction
+}
 </script>
 </body>
 </html>

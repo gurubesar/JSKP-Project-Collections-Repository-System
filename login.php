@@ -2,18 +2,13 @@
 session_start();
 require __DIR__ . '/db.php';
 
-// Initialize database if it doesn't exist
-if (!file_exists(__DIR__ . '/fyp_system.db')) {
+try {
+    $db->query('SELECT 1 FROM users LIMIT 1');
+} catch (Exception $e) {
     try {
-        $schema = file_get_contents(__DIR__ . '/schema.sql');
-        $statements = array_filter(array_map('trim', explode(';', $schema)));
-        foreach ($statements as $stmt) {
-            if (!empty($stmt)) {
-                $db->exec($stmt);
-            }
-        }
-    } catch (Exception $e) {
-        die('Error initializing database: ' . $e->getMessage());
+        initializeDatabase($db);
+    } catch (Exception $initError) {
+        die('Error initializing database: ' . $initError->getMessage());
     }
 }
 
@@ -27,21 +22,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Please enter both email and password.';
     } else {
         try {
-            $stmt = $db->prepare('SELECT user_id, name, role FROM users WHERE email = ? AND password = ? LIMIT 1');
-            $stmt->execute([$email, $password]);
+            $emailHash = hashEmail($email);
+            $stmt = $db->prepare('SELECT user_id, name_encrypted, password_hash, role FROM users WHERE email_hash = ? LIMIT 1');
+            $stmt->execute([$emailHash]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-            if ($user) {
+            if ($user && password_verify($password, $user['password_hash'])) {
                 $_SESSION['user_id'] = $user['user_id'];
-                $_SESSION['user_name'] = $user['name'];
+                $_SESSION['user_name'] = decryptData($user['name_encrypted']);
                 $_SESSION['user_role'] = $user['role'];
 
                 if ($user['role'] === 'admin') {
+                    $_SESSION['admin_logged_in'] = true;
                     header('Location: admin_dashboard.php');
                     exit;
                 }
 
                 if ($user['role'] === 'lecturer') {
+                    $_SESSION['lecturer_logged_in'] = true;
                     header('Location: Lecturer_dashboard.php');
                     exit;
                 }
@@ -243,12 +241,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <form id="loginForm" class="login-form" method="post" action="login.php">
                 <div class="form-row">
                     <label for="email">Email</label>
-                    <input id="email" name="email" class="form-control" type="email" required>
+                    <input id="email" name="email" class="form-control" type="email" value="admin@example.com" required>
                 </div>
 
                 <div class="form-row">
                     <label for="password">Password</label>
-                    <input id="password" name="password" class="form-control" type="password" required>
+                    <input id="password" name="password" class="form-control" type="password" value="password" required>
                 </div>
 
                 <div class="form-footer">

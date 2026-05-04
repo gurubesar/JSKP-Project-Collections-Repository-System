@@ -1,34 +1,70 @@
 <?php
 /**
  * Database Initialization Script
- * Run this once to initialize the SQLite database with schema and sample data
+ * Run this once to initialize the PostgreSQL database with schema and encrypted sample data.
  */
 
 require __DIR__ . '/db.php';
 
-$dbPath = __DIR__ . '/fyp_system.db';
-
 try {
-    // Create or initialize the database
-    if (!file_exists($dbPath)) {
-        echo "Creating database at: $dbPath\n";
+    initializeDatabase($db);
+
+    // Insert encrypted sample users
+    $sampleUsers = [
+        ['name' => 'Admin',          'email' => 'admin@example.com',  'password' => 'password', 'role' => 'admin',    'created_by' => null],
+        ['name' => 'Lecturer',       'email' => 'lect@example.com',   'password' => 'password', 'role' => 'lecturer', 'created_by' => 1],
+        ['name' => 'Student',        'email' => 'student@example.com','password' => 'password', 'role' => 'student',  'created_by' => 1],
+    ];
+
+    $insertUser = $db->prepare(
+        'INSERT INTO users (user_id, name_encrypted, email_hash, email_encrypted, password_hash, role, created_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT (user_id) DO NOTHING'
+    );
+
+    $uid = 1;
+    foreach ($sampleUsers as $u) {
+        $insertUser->execute([
+            $uid,
+            encryptData($u['name']),
+            hashEmail($u['email']),
+            encryptData($u['email']),
+            password_hash($u['password'], PASSWORD_BCRYPT),
+            $u['role'],
+            $u['created_by']
+        ]);
+        $uid++;
+    }
+
+    // Insert encrypted sample projects
+    $insertProject = $db->prepare(
+        'INSERT INTO projects (project_id, title_encrypted, description_encrypted, lecturer_id, study_year)
+         VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT (project_id) DO NOTHING'
+    );
+    $insertProject->execute([101, encryptData('JSKP System A'), encryptData('Project A description'), 2, 3]);
+    $insertProject->execute([102, encryptData('JSKP System B'), encryptData('Project B description'), 2, 3]);
+
+    // Insert sample project members
+    $insertMember = $db->prepare(
+        'INSERT INTO project_members (id, project_id, user_id, role)
+         VALUES (?, ?, ?, ?)
+         ON CONFLICT (project_id, user_id) DO NOTHING'
+    );
+    $insertMember->execute([1, 101, 3, 'leader']);
+    $insertMember->execute([2, 102, 3, 'member']);
+
+    if ($db->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql') {
+        $db->exec("SELECT setval(pg_get_serial_sequence('users', 'user_id'), COALESCE((SELECT MAX(user_id) FROM users), 1))");
+        $db->exec("SELECT setval(pg_get_serial_sequence('projects', 'project_id'), COALESCE((SELECT MAX(project_id) FROM projects), 1))");
+        $db->exec("SELECT setval(pg_get_serial_sequence('project_members', 'id'), COALESCE((SELECT MAX(id) FROM project_members), 1))");
     }
     
-    // Read and execute schema
-    $schema = file_get_contents(__DIR__ . '/schema.sql');
-    $statements = array_filter(array_map('trim', explode(';', $schema)));
-    
-    foreach ($statements as $stmt) {
-        if (!empty($stmt)) {
-            $db->exec($stmt);
-        }
-    }
-    
-    echo "✓ Database initialized successfully!\n";
-    echo "✓ Sample users created:\n";
+    echo "Database initialized successfully.\n";
+    echo "Sample users created (encrypted):\n";
     echo "  - admin@example.com / password (Admin)\n";
-    echo "  - dr.ali@example.com / password (Lecturer)\n";
-    echo "  - ahmad@example.com / password (Student)\n";
+    echo "  - lect@example.com / password (Lecturer)\n";
+    echo "  - student@example.com / password (Student)\n";
     
 } catch (PDOException $e) {
     echo "Error initializing database: " . $e->getMessage() . "\n";

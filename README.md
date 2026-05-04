@@ -6,6 +6,26 @@ Students will use the system to upload their project materials such as proposals
 Programming Language	HTML, CSS, JavaScript, PHP
 Framework	Bootstrap
 Database	PostgreSQL
+
+## PostgreSQL setup
+
+Install/enable the PHP PostgreSQL PDO extension (`pdo_pgsql`), create a database, then configure:
+
+```bash
+export DB_CONNECTION=pgsql
+export DB_HOST=127.0.0.1
+export DB_PORT=5432
+export DB_DATABASE=fyp_submission_system
+export DB_USERNAME=postgres
+export DB_PASSWORD=your_password
+```
+
+Initialize the schema and starter encrypted accounts:
+
+```bash
+php init_db.php
+```
+
 Theme: Universiti Teknologi Malaysia colour theme
 UTM Maroon: #800020
 UTM Gold:   #F2A900

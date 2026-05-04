@@ -36,6 +36,20 @@ try {
         $uid++;
     }
 
+    $insertLecturer = $db->prepare(
+        'INSERT INTO lecturers (user_id, staff_id, department)
+         VALUES (?, ?, ?)
+         ON CONFLICT (user_id) DO NOTHING'
+    );
+    $insertLecturer->execute([2, 'UTM-L001', 'Faculty of Computing']);
+
+    $insertStudent = $db->prepare(
+        'INSERT INTO students (user_id, matric_no, course, intake)
+         VALUES (?, ?, ?, ?)
+         ON CONFLICT (user_id) DO NOTHING'
+    );
+    $insertStudent->execute([3, 'A23CS0001', 'Software Engineering', '2023/2024']);
+
     // Insert encrypted sample projects
     $insertProject = $db->prepare(
         'INSERT INTO projects (project_id, title_encrypted, description_encrypted, lecturer_id, study_year)
@@ -56,6 +70,8 @@ try {
 
     if ($db->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql') {
         $db->exec("SELECT setval(pg_get_serial_sequence('users', 'user_id'), COALESCE((SELECT MAX(user_id) FROM users), 1))");
+        $db->exec("SELECT setval(pg_get_serial_sequence('students', 'student_id'), COALESCE((SELECT MAX(student_id) FROM students), 1))");
+        $db->exec("SELECT setval(pg_get_serial_sequence('lecturers', 'lecturer_id'), COALESCE((SELECT MAX(lecturer_id) FROM lecturers), 1))");
         $db->exec("SELECT setval(pg_get_serial_sequence('projects', 'project_id'), COALESCE((SELECT MAX(project_id) FROM projects), 1))");
         $db->exec("SELECT setval(pg_get_serial_sequence('project_members', 'id'), COALESCE((SELECT MAX(id) FROM project_members), 1))");
     }

@@ -1,813 +1,864 @@
 <?php
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 if (!isset($_SESSION['lecturer_logged_in']) || $_SESSION['lecturer_logged_in'] !== true) {
     header('Location: login.php');
     exit;
 }
-?><!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>UTM Academic Project Review – Lecturer Portal</title>
-<link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="utm-theme.css">
-<style>
-  :root {
-    --utm-maroon: #800020;
-    --utm-maroon-dark: #5c0018;
-    --utm-maroon-light: #a21f40;
-    --utm-gold: #F2A900;
-    --utm-gold-light: #f7c94c;
-    --utm-gold-pale: #fff1b8;
-    --utm-dark: #222222;
-    --utm-bg: #f5f2ee;
-    --utm-surface: #ffffff;
-    --utm-surface-soft: #faf2eb;
-    --utm-sidebar: #6B0000;
-    --utm-text: #222222;
-    --utm-muted: #4a3d35;
-    --utm-border: #d8c7b3;
-    --utm-pending: #e8a020;
-    --utm-approved: #2e7d32;
-    --utm-needs-revision: #c0392b;
-    --utm-rejected: #555;
-    --utm-transition: 0.22s cubic-bezier(.4,0,.2,1);
-    --utm-red: var(--utm-maroon);
-    --utm-gold: var(--utm-gold);
-    --utm-dark: var(--utm-dark);
-    --bg: var(--utm-bg);
-    --card-bg: var(--utm-surface);
-    --sidebar-bg: var(--utm-sidebar);
-    --text: var(--utm-text);
-    --muted: var(--utm-muted);
-    --border: var(--utm-border);
-    --pending: var(--utm-pending);
-    --approved: var(--utm-approved);
-    --needs-revision: var(--utm-needs-revision);
-    --rejected: var(--utm-rejected);
-    --transition: var(--utm-transition);
-  }
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+require_once __DIR__ . '/db.php';
 
-  body {
-    font-family: 'DM Sans', sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-  }
+function e($value): string
+{
+    return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+}
 
-  /* ── LOGIN PAGE ── */
-  #login-page {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: linear-gradient(135deg, #6B0000 0%, #1a0505 60%, #3a1a00 100%);
-    position: relative;
-    overflow: hidden;
-  }
-  #login-page::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-  }
-  .login-box {
-    background: #fff;
-    border-radius: 18px;
-    padding: 50px 48px 44px;
-    width: 420px;
-    box-shadow: 0 30px 80px rgba(0,0,0,.45);
-    position: relative;
-    animation: fadeUp .5s ease both;
-  }
-  @keyframes fadeUp { from { opacity:0; transform:translateY(24px); } to { opacity:1; transform:translateY(0); } }
-  .login-logo {
-    display: flex; align-items: center; gap: 14px; margin-bottom: 32px;
-  }
-  .login-logo-mark {
-    width: 52px; height: 52px;
-    background: var(--utm-red);
-    border-radius: 12px;
-    display: flex; align-items: center; justify-content: center;
-    font-family: 'Merriweather', serif;
-    color: #fff; font-size: 20px; font-weight: 700;
-    letter-spacing: -1px;
-  }
-  .login-logo-text h2 {
-    font-family: 'Merriweather', serif;
-    font-size: 15px; color: var(--utm-red); font-weight: 700;
-  }
-  .login-logo-text p { font-size: 11px; color: var(--muted); }
-  .login-box h1 {
-    font-family: 'Merriweather', serif;
-    font-size: 22px; font-weight: 700; color: var(--utm-red); margin-bottom: 6px;
-  }
-  .login-box .subtitle { font-size: 13.5px; color: var(--muted); margin-bottom: 30px; }
-  .form-group { margin-bottom: 18px; }
-  .form-group label { display: block; font-size: 12.5px; font-weight: 600; color: var(--text); margin-bottom: 7px; letter-spacing: .3px; }
-  .form-group input {
-    width: 100%; padding: 11px 14px; border: 1.5px solid var(--border);
-    border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 14px;
-    color: var(--text); background: var(--bg); outline: none;
-    transition: border-color var(--transition), box-shadow var(--transition);
-  }
-  .form-group input:focus { border-color: var(--utm-red); box-shadow: 0 0 0 3px rgba(139,0,0,.1); }
-  .forgot-link { text-align: right; margin-top: -10px; margin-bottom: 20px; }
-  .forgot-link a { font-size: 12px; color: var(--utm-gold); text-decoration: none; font-weight: 500; }
-  .forgot-link a:hover { text-decoration: underline; }
-  .btn-login {
-    width: 100%; padding: 13px;
-    background: var(--utm-red); color: #fff;
-    border: none; border-radius: 9px; font-size: 15px; font-weight: 600;
-    font-family: 'DM Sans', sans-serif; cursor: pointer;
-    transition: background var(--transition), transform var(--transition);
-    letter-spacing: .2px;
-  }
-  .btn-login:hover { background: #6B0000; transform: translateY(-1px); }
-  .login-note { margin-top: 18px; text-align: center; font-size: 12px; color: var(--muted); }
-  .login-error {
-    background: #fef2f2; border: 1px solid #fca5a5; color: #991b1b;
-    padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; display: none;
-  }
+function decryptValue(?string $value): string
+{
+    if ($value === null || $value === '') {
+        return '';
+    }
 
-  /* ── DASHBOARD ── */
-  #dashboard-page { display: none; min-height: 100vh; flex-direction: row; }
+    try {
+        return decryptData($value);
+    } catch (Throwable $error) {
+        return '';
+    }
+}
 
-  /* Sidebar */
-  .sidebar {
-    width: 220px; min-height: 100vh;
-    background: var(--utm-red);
-    display: flex; flex-direction: column;
-    position: fixed; left: 0; top: 0; bottom: 0;
-    z-index: 100;
-  }
-  .sidebar-brand {
-    padding: 24px 20px 20px;
-    border-bottom: 1px solid rgba(255,255,255,.12);
-    display: flex; align-items: center; gap: 12px;
-  }
-  .brand-mark {
-    width: 38px; height: 38px; background: rgba(255,255,255,.15);
-    border-radius: 8px; display: flex; align-items: center; justify-content: center;
-    font-family: 'Merriweather', serif; color: #fff; font-size: 15px; font-weight: 700;
-  }
-  .brand-label { color: #fff; font-size: 13px; font-weight: 600; line-height: 1.3; }
-  .brand-label span { display: block; font-size: 10px; opacity: .65; font-weight: 400; }
-  .sidebar-nav { flex: 1; padding: 18px 10px; }
-  .nav-item {
-    display: flex; align-items: center; gap: 11px; padding: 11px 13px;
-    color: rgba(255,255,255,.72); font-size: 13.5px; border-radius: 8px;
-    cursor: pointer; transition: background var(--transition), color var(--transition);
-    margin-bottom: 2px; user-select: none;
-  }
-  .nav-item:hover, .nav-item.active { background: rgba(255,255,255,.15); color: #fff; }
-  .nav-item svg { width: 17px; height: 17px; flex-shrink: 0; }
-  .sidebar-bottom { padding: 14px 10px 20px; border-top: 1px solid rgba(255,255,255,.12); }
-  .nav-item.danger:hover { background: rgba(255,80,80,.18); color: #ff8080; }
+function lecturerOwnsProject(PDO $db, int $lecturerId, int $projectId): bool
+{
+    $stmt = $db->prepare('SELECT COUNT(*) FROM projects WHERE project_id = ? AND lecturer_id = ?');
+    $stmt->execute([$projectId, $lecturerId]);
+    return (int) $stmt->fetchColumn() > 0;
+}
 
-  /* Main */
-  .main { margin-left: 220px; flex: 1; display: flex; flex-direction: column; }
-  .topbar {
-    background: #fff; padding: 0 32px; height: 64px;
-    display: flex; align-items: center; justify-content: space-between;
-    border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 50;
-  }
-  .topbar-title { font-family: 'Merriweather', serif; font-size: 17px; font-weight: 700; color: var(--utm-red); }
-  .topbar-right { display: flex; align-items: center; gap: 18px; }
-  .notif-btn {
-    position: relative; background: none; border: none; cursor: pointer; padding: 6px;
-    color: var(--muted); border-radius: 8px; transition: background var(--transition);
-  }
-  .notif-btn:hover { background: var(--bg); }
-  .notif-badge {
-    position: absolute; top: 2px; right: 2px; width: 16px; height: 16px;
-    background: var(--utm-gold); color: #fff; font-size: 10px; font-weight: 700;
-    border-radius: 50%; display: flex; align-items: center; justify-content: center;
-  }
-  .user-chip {
-    display: flex; align-items: center; gap: 10px;
-    background: var(--bg); padding: 7px 14px 7px 7px; border-radius: 50px;
-    cursor: pointer;
-  }
-  .user-avatar {
-    width: 32px; height: 32px; border-radius: 50%;
-    background: var(--utm-red); color: #fff; display: flex; align-items: center; justify-content: center;
-    font-size: 13px; font-weight: 700;
-  }
-  .user-info { line-height: 1.25; }
-  .user-info strong { font-size: 13px; display: block; }
-  .user-info span { font-size: 11px; color: var(--muted); }
+function updateSubmissionStatus(PDO $db, int $projectId, string $status): void
+{
+    $stmt = $db->prepare('SELECT submission_id FROM submissions WHERE project_id = ? ORDER BY submitted_at DESC LIMIT 1');
+    $stmt->execute([$projectId]);
+    $submissionId = $stmt->fetchColumn();
 
-  /* Content area */
-  .content { padding: 32px; flex: 1; }
-  .page-header { margin-bottom: 26px; }
-  .page-header h1 { font-family: 'Merriweather', serif; font-size: 22px; font-weight: 700; color: var(--utm-red); }
-  .breadcrumb { font-size: 12px; color: var(--muted); margin-top: 4px; }
-  .breadcrumb span { color: var(--utm-gold); }
+    if ($submissionId) {
+        $update = $db->prepare('UPDATE submissions SET status = ? WHERE submission_id = ?');
+        $update->execute([$status, $submissionId]);
+        return;
+    }
 
-  /* Filters & search */
-  .toolbar {
-    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px;
-    margin-bottom: 24px;
-  }
-  .filter-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
-  .filter-tab {
-    padding: 6px 14px; border-radius: 20px; font-size: 12.5px; font-weight: 500;
-    cursor: pointer; border: 1.5px solid var(--border); background: #fff; color: var(--muted);
-    transition: all var(--transition);
-  }
-  .filter-tab.active, .filter-tab:hover { background: var(--utm-red); color: #fff; border-color: var(--utm-red); }
-  .search-box {
-    display: flex; align-items: center; gap: 8px;
-    background: #fff; border: 1.5px solid var(--border); border-radius: 9px; padding: 8px 14px;
-  }
-  .search-box input {
-    border: none; outline: none; font-family: 'DM Sans', sans-serif;
-    font-size: 13.5px; background: none; width: 200px; color: var(--text);
-  }
-  .search-box svg { color: var(--muted); width: 15px; height: 15px; }
+    $insert = $db->prepare('INSERT INTO submissions (project_id, status) VALUES (?, ?)');
+    $insert->execute([$projectId, $status]);
+}
 
-  /* Stats row */
-  .stats-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; margin-bottom: 28px; }
-  .stat-card {
-    background: #fff; border-radius: 12px; padding: 18px 20px;
-    border: 1px solid var(--border);
-    display: flex; flex-direction: column; gap: 4px;
-  }
-  .stat-card .label { font-size: 11.5px; color: var(--muted); font-weight: 500; letter-spacing: .3px; text-transform: uppercase; }
-  .stat-card .value { font-family: 'Merriweather', serif; font-size: 28px; font-weight: 700; color: var(--utm-red); }
-  .stat-card .sub { font-size: 11.5px; color: var(--muted); }
+$lecturerId = (int) ($_SESSION['user_id'] ?? 0);
+$lecturerName = trim((string) ($_SESSION['user_name'] ?? 'Lecturer'));
+$lecturerInitials = implode('', array_slice(array_map(
+    static fn($part) => strtoupper(substr($part, 0, 1)),
+    array_filter(preg_split('/\s+/', $lecturerName) ?: [])
+), 0, 2)) ?: 'L';
+$flashMessage = '';
+$flashType = 'success';
 
-  /* Cards grid */
-  .cards-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(290px,1fr)); gap: 18px; }
-  .project-card {
-    background: #fff; border-radius: 13px; padding: 20px;
-    border: 1px solid var(--border); transition: box-shadow var(--transition), transform var(--transition);
-    display: flex; flex-direction: column; gap: 10px;
-  }
-  .project-card:hover { box-shadow: 0 6px 24px rgba(0,0,0,.08); transform: translateY(-2px); }
-  .card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
-  .card-id { font-size: 10.5px; color: var(--muted); font-weight: 500; }
-  .card-title { font-family: 'Merriweather', serif; font-size: 14px; font-weight: 700; color: var(--utm-red); line-height: 1.4; }
-  .badge {
-    padding: 3px 10px; border-radius: 20px; font-size: 10.5px; font-weight: 600;
-    white-space: nowrap; flex-shrink: 0;
-  }
-  .badge.pending { background: #fff3cd; color: #856404; }
-  .badge.approved { background: #d4edda; color: #155724; }
-  .badge.revision { background: #f8d7da; color: #721c24; }
-  .badge.rejected { background: #e2e3e5; color: #383d41; }
-  .card-meta { font-size: 12px; color: var(--muted); line-height: 1.8; }
-  .card-meta strong { color: var(--text); font-weight: 500; }
-  .card-actions { display: flex; gap: 7px; margin-top: 4px; flex-wrap: wrap; }
-  .btn {
-    padding: 7px 13px; border-radius: 7px; font-size: 12px; font-weight: 600;
-    font-family: 'DM Sans', sans-serif; cursor: pointer; border: none;
-    display: flex; align-items: center; gap: 5px; transition: all var(--transition);
-  }
-  .btn-approve { background: #e8f5e9; color: #2e7d32; }
-  .btn-approve:hover { background: #2e7d32; color: #fff; }
-  .btn-reject { background: #fdecea; color: #c62828; }
-  .btn-reject:hover { background: #c62828; color: #fff; }
-  .btn-comment { background: var(--bg); color: var(--muted); border: 1px solid var(--border); }
-  .btn-comment:hover { background: var(--utm-gold); color: #fff; border-color: var(--utm-gold); }
-  .btn-grades { background: var(--utm-red); color: #fff; }
-  .btn-grades:hover { background: #6B0000; }
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+    $action = $_POST['action'] ?? '';
+    $projectId = (int) ($_POST['project_id'] ?? 0);
 
-  /* Pagination */
-  .pagination { display: flex; align-items: center; gap: 6px; margin-top: 32px; justify-content: center; }
-  .pg-btn {
-    width: 34px; height: 34px; border-radius: 8px; border: 1.5px solid var(--border);
-    background: #fff; color: var(--text); font-size: 13px; font-weight: 600;
-    cursor: pointer; display: flex; align-items: center; justify-content: center;
-    transition: all var(--transition);
-  }
-  .pg-btn.active { background: var(--utm-red); color: #fff; border-color: var(--utm-red); }
-  .pg-btn:hover:not(.active) { border-color: var(--utm-red); color: var(--utm-red); }
+    try {
+        if ($projectId > 0 && lecturerOwnsProject($db, $lecturerId, $projectId)) {
+            if ($action === 'approve') {
+                updateSubmissionStatus($db, $projectId, 'approved');
+                $flashMessage = 'Project submission approved.';
+            } elseif ($action === 'reject') {
+                updateSubmissionStatus($db, $projectId, 'rejected');
+                $flashMessage = 'Project submission rejected.';
+                $flashType = 'danger';
+            } elseif ($action === 'comment') {
+                $comment = trim((string) ($_POST['comment'] ?? ''));
+                if ($comment !== '') {
+                    $stmt = $db->prepare('INSERT INTO comments (project_id, user_id, content_encrypted) VALUES (?, ?, ?)');
+                    $stmt->execute([$projectId, $lecturerId, encryptData($comment)]);
+                    $flashMessage = 'Feedback submitted.';
+                } else {
+                    $flashMessage = 'Please enter feedback before submitting.';
+                    $flashType = 'danger';
+                }
+            }
+        }
+    } catch (Throwable $error) {
+        $flashMessage = 'Unable to update the project right now.';
+        $flashType = 'danger';
+    }
+}
 
-  /* Modal */
-  .modal-overlay {
-    display: none; position: fixed; inset: 0;
-    background: rgba(0,0,0,.45); z-index: 500;
-    align-items: center; justify-content: center;
-    animation: fadeIn .2s ease;
-  }
-  .modal-overlay.open { display: flex; }
-  @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
-  .modal {
-    background: #fff; border-radius: 16px; padding: 32px 36px;
-    width: 480px; max-width: 95vw; box-shadow: 0 24px 60px rgba(0,0,0,.25);
-    animation: fadeUp .25s ease both;
-  }
-  .modal h2 { font-family: 'Merriweather', serif; color: var(--utm-red); font-size: 18px; margin-bottom: 6px; }
-  .modal .modal-sub { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
-  .modal textarea {
-    width: 100%; padding: 12px 14px; border: 1.5px solid var(--border);
-    border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13.5px;
-    resize: vertical; min-height: 110px; outline: none; color: var(--text);
-    transition: border-color var(--transition);
-  }
-  .modal textarea:focus { border-color: var(--utm-red); }
-  .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
-  .btn-cancel { padding: 10px 20px; border-radius: 8px; border: 1.5px solid var(--border); background: #fff; color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; font-weight: 600; }
-  .btn-submit { padding: 10px 22px; border-radius: 8px; background: var(--utm-red); color: #fff; border: none; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; }
-  .btn-submit:hover { background: #6B0000; }
+$projects = [];
 
-  /* Marks modal */
-  .marks-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
-  .marks-grid .form-group { margin: 0; }
-  .marks-grid input[type=number] {
-    width: 100%; padding: 10px 12px; border: 1.5px solid var(--border);
-    border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 14px;
-    outline: none; transition: border-color var(--transition);
-  }
-  .marks-grid input[type=number]:focus { border-color: var(--utm-red); }
+try {
+    $stmt = $db->prepare(
+        "SELECT p.project_id, p.title_encrypted, p.description_encrypted, p.study_year, p.created_at,
+                latest.submission_id, latest.submitted_at, latest.status
+         FROM projects p
+         LEFT JOIN LATERAL (
+             SELECT submission_id, submitted_at, status
+             FROM submissions
+             WHERE submissions.project_id = p.project_id
+             ORDER BY submitted_at DESC
+             LIMIT 1
+         ) latest ON TRUE
+         WHERE p.lecturer_id = ?
+         ORDER BY COALESCE(latest.submitted_at, p.created_at) DESC"
+    );
+    $stmt->execute([$lecturerId]);
+    $projectRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-  /* Toast */
-  .toast {
-    position: fixed; bottom: 28px; right: 28px; z-index: 999;
-    background: #1a0505; color: #fff; padding: 13px 22px; border-radius: 10px;
-    font-size: 13.5px; font-weight: 500; box-shadow: 0 8px 24px rgba(0,0,0,.25);
-    transform: translateY(20px); opacity: 0; transition: all .35s cubic-bezier(.4,0,.2,1);
-    pointer-events: none;
-  }
-  .toast.show { transform: translateY(0); opacity: 1; }
-  .toast.success::before { content: '✓  '; color: #4caf50; }
-  .toast.error::before { content: '✕  '; color: #ef5350; }
+    $studentStmt = $db->prepare(
+        "SELECT u.user_id, u.name_encrypted, pm.role
+         FROM project_members pm
+         INNER JOIN users u ON u.user_id = pm.user_id
+         WHERE pm.project_id = ?
+         ORDER BY pm.role DESC, u.user_id ASC"
+    );
 
-  /* Section headings */
-  .section-label {
-    font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .8px;
-    color: var(--muted); margin-bottom: 14px;
-  }
+    foreach ($projectRows as $row) {
+        $studentStmt->execute([(int) $row['project_id']]);
+        $students = [];
 
-  /* Hide page */
-  .hidden { display: none !important; }
+        foreach ($studentStmt->fetchAll(PDO::FETCH_ASSOC) as $student) {
+            $name = decryptValue($student['name_encrypted'] ?? '');
+            if ($name !== '') {
+                $students[] = [
+                    'id' => (int) $student['user_id'],
+                    'name' => $name,
+                    'role' => (string) ($student['role'] ?? ''),
+                ];
+            }
+        }
 
-  /* Profile dropdown */
-  .profile-dropdown {
-    position: fixed; top: 72px; right: 24px; background: #fff;
-    border: 1px solid var(--border); border-radius: 12px; padding: 10px;
-    width: 210px; box-shadow: 0 12px 32px rgba(0,0,0,.12); z-index: 200;
-    display: none;
-  }
-  .profile-dropdown.open { display: block; animation: fadeUp .2s ease both; }
-  .pd-item {
-    padding: 9px 12px; border-radius: 8px; font-size: 13px; cursor: pointer;
-    color: var(--text); display: flex; align-items: center; gap: 8px;
-    transition: background var(--transition);
-  }
-  .pd-item:hover { background: var(--bg); }
-  .pd-item.danger { color: #c62828; }
-  .pd-item.danger:hover { background: #fdecea; }
-  .pd-divider { border: none; border-top: 1px solid var(--border); margin: 6px 0; }
+        $projects[] = [
+            'id' => (int) $row['project_id'],
+            'code' => 'UTM-FYP-' . str_pad((string) $row['project_id'], 4, '0', STR_PAD_LEFT),
+            'title' => decryptValue($row['title_encrypted'] ?? '') ?: 'No data available',
+            'description' => decryptValue($row['description_encrypted'] ?? ''),
+            'study_year' => $row['study_year'] ?? '',
+            'submitted_at' => $row['submitted_at'] ?? null,
+            'status' => $row['status'] ?: 'pending',
+            'students' => $students,
+        ];
+    }
+} catch (Throwable $error) {
+    $projects = [];
+    $flashMessage = $flashMessage ?: 'Unable to load lecturer projects.';
+    $flashType = 'danger';
+}
 
-  /* Reports / Students page placeholder */
-  .placeholder-panel { text-align: center; padding: 80px 24px; }
-  .placeholder-panel svg { width: 64px; height: 64px; color: #d0c8c0; margin-bottom: 16px; }
-  .placeholder-panel h3 { font-family: 'Merriweather', serif; color: var(--utm-red); font-size: 18px; margin-bottom: 8px; }
-  .placeholder-panel p { color: var(--muted); font-size: 14px; }
-</style>
-</head>
-<body>
-
-<!-- ═══════════ DASHBOARD ═══════════ -->
-<div id="dashboard-page">
-
-  <!-- Sidebar -->
-  <nav class="sidebar">
-    <div class="sidebar-brand">
-      <div class="brand-mark">UTM</div>
-      <div class="brand-label">Academic Review<span>Lecturer Portal</span></div>
-    </div>
-    <div class="sidebar-nav">
-      <div class="nav-item active" onclick="showSection('projects', this)">
-        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 7h18M3 12h18M3 17h12"/></svg>
-        Dashboard
-      </div>
-      <div class="nav-item" onclick="showSection('submissions', this)">
-        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414A1 1 0 0121 9.414V19a2 2 0 01-2 2z"/></svg>
-        Project Submissions
-      </div>
-      <div class="nav-item" onclick="showSection('review', this)">
-        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-        Review Queue
-      </div>
-      <div class="nav-item" onclick="showSection('students', this)">
-        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 14l9-5-9-5-9 5 9 5zm0 0v6m-4-4h8"/></svg>
-        Students
-      </div>
-      <div class="nav-item" onclick="showSection('grades', this)">
-        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
-        Final Grades
-      </div>
-      <div class="nav-item" onclick="showSection('reports', this)">
-        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-        Reports
-      </div>
-    </div>
-    <div class="sidebar-bottom">
-      <div class="nav-item" onclick="showSection('settings', this)">
-        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-        Settings
-      </div>
-      <div class="nav-item danger" onclick="doLogout()">
-        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-        Sign Out
-      </div>
-    </div>
-  </nav>
-
-  <!-- Main area -->
-  <div class="main">
-    <div class="topbar">
-      <span class="topbar-title" id="topbar-title">Academic Project Review</span>
-      <div class="topbar-right">
-        <button class="notif-btn" onclick="showToast('You have 3 new notifications','success')">
-          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
-          <span class="notif-badge">3</span>
-        </button>
-        <div class="user-chip" onclick="toggleProfile()">
-          <div class="user-avatar">AZ</div>
-          <div class="user-info">
-            <strong>Prof. Dr. Azman</strong>
-            <span>Faculty of Computing</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Profile dropdown -->
-    <div class="profile-dropdown" id="profile-dropdown">
-      <div class="pd-item">
-        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-        My Profile
-      </div>
-      <div class="pd-item">
-        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-        Change Password
-      </div>
-      <hr class="pd-divider">
-      <div class="pd-item danger" onclick="doLogout()">
-        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 16l4-4m0 0l-4-4m4 4H7"/></svg>
-        Sign Out
-      </div>
-    </div>
-
-    <div class="content">
-      <!-- ── PROJECTS / DASHBOARD ── -->
-      <div id="sec-projects">
-        <div class="page-header">
-          <h1>Dashboard Overview</h1>
-          <div class="breadcrumb">Home › <span>Projects</span> › Current Submissions</div>
-        </div>
-
-        <div class="stats-row">
-          <div class="stat-card">
-            <div class="label">Total Projects</div>
-            <div class="value">24</div>
-            <div class="sub">Session 2023/2024</div>
-          </div>
-          <div class="stat-card">
-            <div class="label">Pending Review</div>
-            <div class="value" style="color:#C8973A">8</div>
-            <div class="sub">Awaiting your action</div>
-          </div>
-          <div class="stat-card">
-            <div class="label">Approved</div>
-            <div class="value" style="color:#2e7d32">13</div>
-            <div class="sub">Passed review</div>
-          </div>
-          <div class="stat-card">
-            <div class="label">Needs Revision</div>
-            <div class="value" style="color:#c0392b">3</div>
-            <div class="sub">Returned to students</div>
-          </div>
-        </div>
-
-        <div class="toolbar">
-          <div class="filter-tabs">
-            <div class="filter-tab active" onclick="filterCards('all',this)">All Projects</div>
-            <div class="filter-tab" onclick="filterCards('pending',this)">Pending Review</div>
-            <div class="filter-tab" onclick="filterCards('approved',this)">Approved</div>
-            <div class="filter-tab" onclick="filterCards('revision',this)">Needs Revision</div>
-            <div class="filter-tab" onclick="filterCards('rejected',this)">Rejected</div>
-          </div>
-          <div class="search-box">
-            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-            <input type="text" placeholder="Search projects or students…" oninput="searchCards(this.value)">
-          </div>
-        </div>
-
-        <div class="section-label">Current Submissions</div>
-        <div class="cards-grid" id="cards-grid"></div>
-        <div class="pagination" id="pagination"></div>
-      </div>
-
-      <!-- ── SUBMISSIONS ── -->
-      <div id="sec-submissions" class="hidden">
-        <div class="page-header">
-          <h1>Project Submissions</h1>
-          <div class="breadcrumb">Home › <span>Submissions</span></div>
-        </div>
-        <div class="placeholder-panel">
-          <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414A1 1 0 0121 9.414V19a2 2 0 01-2 2z"/></svg>
-          <h3>All Student Submissions</h3>
-          <p>View, download, and review all project documents submitted by your students.</p>
-        </div>
-      </div>
-
-      <!-- ── REVIEW QUEUE ── -->
-      <div id="sec-review" class="hidden">
-        <div class="page-header">
-          <h1>Review Queue</h1>
-          <div class="breadcrumb">Home › <span>Review Queue</span></div>
-        </div>
-        <div class="toolbar" style="margin-bottom:18px">
-          <div class="filter-tabs">
-            <div class="filter-tab active">Pending (8)</div>
-            <div class="filter-tab">Needs Revision (3)</div>
-          </div>
-        </div>
-        <div class="cards-grid" id="review-grid"></div>
-      </div>
-
-      <!-- ── STUDENTS ── -->
-      <div id="sec-students" class="hidden">
-        <div class="page-header">
-          <h1>Assigned Students</h1>
-          <div class="breadcrumb">Home › <span>Students</span></div>
-        </div>
-        <div class="placeholder-panel">
-          <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M12 14l9-5-9-5-9 5 9 5zm0 0v6m-4-4h8"/></svg>
-          <h3>Student Progress Tracker</h3>
-          <p>Track submission history, progress milestones, and performance for each assigned student.</p>
-        </div>
-      </div>
-
-      <!-- ── GRADES ── -->
-      <div id="sec-grades" class="hidden">
-        <div class="page-header">
-          <h1>Final Grades</h1>
-          <div class="breadcrumb">Home › <span>Final Grades</span></div>
-        </div>
-        <div class="toolbar" style="margin-bottom:24px">
-          <div class="filter-tabs">
-            <div class="filter-tab active">All Students</div>
-            <div class="filter-tab">Graded</div>
-            <div class="filter-tab">Pending</div>
-          </div>
-          <button class="btn btn-grades" onclick="openMarksModal({title:'Batch Grade Entry', id:'all'})">＋ Assign Marks</button>
-        </div>
-        <div class="cards-grid" id="grades-grid"></div>
-      </div>
-
-      <!-- ── REPORTS ── -->
-      <div id="sec-reports" class="hidden">
-        <div class="page-header">
-          <h1>Reports</h1>
-          <div class="breadcrumb">Home › <span>Reports</span></div>
-        </div>
-        <div class="placeholder-panel">
-          <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-          <h3>Analytics & Reports</h3>
-          <p>Generate submission reports, approval statistics, and grade summaries for your department.</p>
-        </div>
-      </div>
-
-      <!-- ── SETTINGS ── -->
-      <div id="sec-settings" class="hidden">
-        <div class="page-header">
-          <h1>Settings</h1>
-          <div class="breadcrumb">Home › <span>Settings</span></div>
-        </div>
-        <div class="placeholder-panel">
-          <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-          <h3>Account Settings</h3>
-          <p>Manage your preferences, notification settings, and account security.</p>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Comment Modal -->
-<div class="modal-overlay" id="comment-modal">
-  <div class="modal">
-    <h2>Add Comment / Feedback</h2>
-    <p class="modal-sub" id="comment-modal-sub">Provide feedback for the student's submission.</p>
-    <textarea id="comment-text" placeholder="Write your feedback or revision notes here…"></textarea>
-    <div class="modal-actions">
-      <button class="btn-cancel" onclick="closeModal('comment-modal')">Cancel</button>
-      <button class="btn-submit" onclick="submitComment()">Submit Feedback</button>
-    </div>
-  </div>
-</div>
-
-<!-- Marks Modal -->
-<div class="modal-overlay" id="marks-modal">
-  <div class="modal">
-    <h2>Assign Marks</h2>
-    <p class="modal-sub" id="marks-modal-sub">Enter marks for each assessment component.</p>
-    <div class="marks-grid">
-      <div class="form-group"><label>Report (/ 30)</label><input type="number" min="0" max="30" placeholder="e.g. 24"></div>
-      <div class="form-group"><label>Presentation (/ 25)</label><input type="number" min="0" max="25" placeholder="e.g. 20"></div>
-      <div class="form-group"><label>Implementation (/ 30)</label><input type="number" min="0" max="30" placeholder="e.g. 26"></div>
-      <div class="form-group"><label>Supervisor (/ 15)</label><input type="number" min="0" max="15" placeholder="e.g. 13"></div>
-    </div>
-    <div class="modal-actions">
-      <button class="btn-cancel" onclick="closeModal('marks-modal')">Cancel</button>
-      <button class="btn-submit" onclick="submitMarks()">Save Marks</button>
-    </div>
-  </div>
-</div>
-
-<!-- Toast -->
-<div class="toast" id="toast"></div>
-
-<script>
-// ── DATA ──
-const projects = [
-  { id:'UTM-FYP2023-001', title:'AI-Powered Smart Campus Navigation', students:'Ahmad Bin Razak, Nur Ayuni Idris', status:'pending', supervisor:'Dr. Sarah Lee', date:'12 Oct 2023' },
-  { id:'UTM-FYP2023-002', title:'AI-Bcoan Digital Evaluation', students:'Muhammad Adam bin Hassan', status:'approved', supervisor:'Dr. Sarah Lee', date:'12 Oct 2023' },
-  { id:'UTM-FYP2023-003', title:'AI-Town Smart Development', students:'Nurul Huda binti Ahmad', status:'approved', supervisor:'Dr. Sarah Lee', date:'12 Oct 2023' },
-  { id:'UTM-FYP2023-004', title:'AI-Powered Smart Presentation', students:'Ahmad Bin Razak, Nur Ayuni Idris', status:'pending', supervisor:'Dr. Sarah Lee', date:'12 Oct 2023' },
-  { id:'UTM-FYP2023-005', title:'AI-Powered Farmotor Technology', students:'I Bin Razak, Nur Ayuni Idris', status:'revision', supervisor:'Dr. Sarah Lee', date:'12 Oct 2023' },
-  { id:'UTM-FYP2023-006', title:'AI-Teen Smart Projects', students:'Muhammad Adam bin Hassan', status:'pending', supervisor:'Dr. Sarah Lee', date:'12 Oct 2023' },
-  { id:'UTM-FYP2023-007', title:'AI-Powered Smart Corsotation', students:'Ahmad Bin Razak', status:'approved', supervisor:'Dr. Sarah Lee', date:'12 Oct 2023' },
-  { id:'UTM-FYP2023-008', title:'AI-Powered Smart Autorizations', students:'Nur Ayuni Idris', status:'approved', supervisor:'Dr. Sarah Lee', date:'12 Oct 2023' },
-  { id:'UTM-FYP2023-009', title:'AI-Smart Favigation System', students:'Ahmad Bin Razak, Nur Ayuni Idris', status:'approved', supervisor:'Dr. Sarah Lee', date:'12 Oct 2023' },
-  { id:'UTM-FYP2023-010', title:'AI-Powered Smart Campus Portal', students:'Ahmad Bin Razak, Nur Ayuni Idris', status:'approved', supervisor:'Dr. Sarah Lee', date:'12 Oct 2023' },
-  { id:'UTM-FYP2023-011', title:'AI-Powered Invitation System', students:'Ahmad Bin Razak, Nur Ayuni Idris', status:'approved', supervisor:'Dr. Sarah Lee', date:'12 Oct 2023' },
-  { id:'UTM-FYP2023-012', title:'AI-Powered Smart Campus Tracker', students:'Ahmad Bin Razak, Nur Ayuni Idris', status:'pending', supervisor:'Dr. Sarah Lee', date:'12 Oct 2023' },
+$statusLabels = [
+    'pending' => 'Pending',
+    'approved' => 'Approved',
+    'rejected' => 'Rejected',
 ];
 
-const statusMap = { pending:'pending', approved:'approved', revision:'revision', rejected:'rejected' };
-const statusLabel = { pending:'Pending Review', approved:'Approved', revision:'Needs Revision', rejected:'Rejected' };
-let currentFilter = 'all';
-let currentSearch = '';
-const ITEMS_PER_PAGE = 8;
-let currentPage = 1;
-let activeCommentProject = null;
+$totalProjects = count($projects);
+$pendingProjects = count(array_filter($projects, static fn($project) => $project['status'] === 'pending'));
+$approvedProjects = count(array_filter($projects, static fn($project) => $project['status'] === 'approved'));
+$rejectedProjects = count(array_filter($projects, static fn($project) => $project['status'] === 'rejected'));
+$studentMap = [];
+foreach ($projects as $project) {
+    foreach ($project['students'] as $student) {
+        $studentMap[$student['id']] = $student['name'];
+    }
+}
+$assignedStudents = count($studentMap);
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UTM Academic Project Review</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="utm-theme.css">
+    <style>
+        :root {
+            --lecturer-maroon: #800020;
+            --lecturer-maroon-dark: #540014;
+            --lecturer-gold: #dca51c;
+            --lecturer-bg: #f4f7fb;
+            --lecturer-card: #ffffff;
+            --lecturer-border: #e5e9f0;
+            --lecturer-text: #182033;
+            --lecturer-muted: #6e7686;
+            --lecturer-shadow: 0 16px 38px rgba(28, 39, 60, 0.09);
+        }
 
-// ── BUILD CARD ──
-function buildCard(p) {
-  return `<div class="project-card" data-status="${p.status}" data-title="${p.title.toLowerCase()}" data-students="${p.students.toLowerCase()}">
-    <div class="card-top">
-      <div>
-        <div class="card-id">${p.id}</div>
-        <div class="card-title">${p.title}</div>
-      </div>
-      <span class="badge ${p.status}">${statusLabel[p.status]}</span>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: var(--lecturer-bg);
+            color: var(--lecturer-text);
+            font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+
+        .lecturer-shell {
+            min-height: 100vh;
+            padding-left: 270px;
+        }
+
+        .sidebar {
+            position: fixed;
+            inset: 0 auto 0 0;
+            width: 270px;
+            overflow-y: auto;
+            background: linear-gradient(180deg, var(--lecturer-maroon) 0%, var(--lecturer-maroon-dark) 100%);
+            color: #fff;
+            box-shadow: 12px 0 32px rgba(84, 0, 20, 0.24);
+        }
+
+        .brand {
+            min-height: 105px;
+            padding: 24px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .brand-mark {
+            width: 58px;
+            aspect-ratio: 1;
+            border-radius: 16px;
+            display: grid;
+            place-items: center;
+            background: rgba(220, 165, 28, 0.18);
+            border: 1px solid rgba(220, 165, 28, 0.5);
+            color: #f5c84b;
+            font-weight: 800;
+        }
+
+        .brand-title {
+            margin: 0;
+            color: #f5c84b;
+            font-weight: 800;
+            font-size: 1.25rem;
+            line-height: 1;
+        }
+
+        .brand-subtitle {
+            color: rgba(255, 255, 255, 0.72);
+            font-size: 0.76rem;
+            line-height: 1.35;
+        }
+
+        .sidebar-nav {
+            display: grid;
+            gap: 7px;
+            padding: 18px 14px;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-height: 46px;
+            padding: 11px 14px;
+            border-radius: 12px;
+            color: rgba(255, 255, 255, 0.84);
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .nav-link:hover,
+        .nav-link.active {
+            background: var(--lecturer-gold);
+            color: #271700;
+        }
+
+        .sidebar-footer {
+            margin-top: auto;
+            padding: 16px 14px 22px;
+            border-top: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .lecturer-main {
+            min-width: 0;
+        }
+
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            min-height: 76px;
+            padding: 0 28px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(255, 255, 255, 0.93);
+            border-bottom: 1px solid var(--lecturer-border);
+            backdrop-filter: blur(12px);
+        }
+
+        .icon-button {
+            width: 42px;
+            aspect-ratio: 1;
+            border-radius: 12px;
+            border: 1px solid var(--lecturer-border);
+            background: #fff;
+            display: inline-grid;
+            place-items: center;
+            color: var(--lecturer-text);
+        }
+
+        .profile-chip {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 12px 6px 6px;
+            border-radius: 999px;
+            border: 1px solid var(--lecturer-border);
+            background: #fff;
+        }
+
+        .avatar {
+            width: 38px;
+            aspect-ratio: 1;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            background: #f2e2b8;
+            color: var(--lecturer-maroon);
+            font-weight: 800;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .dashboard-card,
+        .project-card,
+        .stat-card {
+            background: var(--lecturer-card);
+            border: 1px solid var(--lecturer-border);
+            border-radius: 18px;
+            box-shadow: var(--lecturer-shadow);
+        }
+
+        .stat-card {
+            min-height: 124px;
+            padding: 20px;
+        }
+
+        .stat-icon {
+            width: 46px;
+            aspect-ratio: 1;
+            border-radius: 14px;
+            display: grid;
+            place-items: center;
+            background: rgba(128, 0, 32, 0.1);
+            color: var(--lecturer-maroon);
+            font-size: 1.35rem;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            line-height: 1;
+            font-weight: 800;
+        }
+
+        .toolbar {
+            background: #fff;
+            border: 1px solid var(--lecturer-border);
+            border-radius: 18px;
+            padding: 14px;
+            box-shadow: var(--lecturer-shadow);
+        }
+
+        .search-control {
+            min-height: 44px;
+            border-radius: 12px;
+            border: 1px solid var(--lecturer-border);
+        }
+
+        .project-card {
+            display: flex;
+            flex-direction: column;
+            min-height: 272px;
+            padding: 20px;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            min-height: 28px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 0.78rem;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .status-pending {
+            background: #fff5d8;
+            color: #856200;
+        }
+
+        .status-approved {
+            background: #e7f6ed;
+            color: #1f7a45;
+        }
+
+        .status-rejected {
+            background: #fdecec;
+            color: #a43131;
+        }
+
+        .project-title {
+            color: var(--lecturer-maroon);
+            font-size: 1.05rem;
+            font-weight: 800;
+            line-height: 1.35;
+        }
+
+        .student-list {
+            color: var(--lecturer-text);
+            line-height: 1.55;
+        }
+
+        .meta-line {
+            color: var(--lecturer-muted);
+            font-size: 0.9rem;
+        }
+
+        .action-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: auto;
+            padding-top: 16px;
+        }
+
+        .btn-review {
+            min-height: 38px;
+            border-radius: 10px;
+            font-size: 0.8rem;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .btn-comment {
+            border: 1px solid #d9ad37;
+            color: var(--lecturer-maroon);
+            background: #fff;
+        }
+
+        .btn-reject {
+            border: 1px solid var(--lecturer-maroon);
+            color: var(--lecturer-maroon);
+            background: #fff;
+        }
+
+        .btn-approve {
+            border: 1px solid var(--lecturer-gold);
+            background: var(--lecturer-gold);
+            color: #271700;
+        }
+
+        .dashboard-card {
+            padding: 22px;
+        }
+
+        .empty-state {
+            display: grid;
+            place-items: center;
+            min-height: 230px;
+            color: var(--lecturer-muted);
+            text-align: center;
+            border: 1px dashed var(--lecturer-border);
+            border-radius: 16px;
+            background: #fbfcfe;
+        }
+
+        .table thead th {
+            color: #5f6878;
+            font-size: 0.82rem;
+            text-transform: uppercase;
+            background: #f6f8fb;
+        }
+
+        @media (max-width: 991.98px) {
+            .lecturer-shell {
+                padding-left: 0;
+            }
+
+            .sidebar {
+                position: static;
+                width: 100%;
+            }
+
+            .sidebar-nav {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .content {
+                padding: 20px 14px;
+            }
+        }
+
+        @media (max-width: 575.98px) {
+            .sidebar-nav {
+                grid-template-columns: 1fr;
+            }
+
+            .topbar {
+                padding: 0 14px;
+            }
+
+            .welcome-text,
+            .profile-meta {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="lecturer-shell">
+    <aside class="sidebar d-flex flex-column">
+        <div class="brand">
+            <div class="brand-mark">UTM</div>
+            <div>
+                <p class="brand-title">UTM</p>
+                <div class="brand-subtitle">Universiti Teknologi Malaysia<br>Academic Review</div>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav" aria-label="Lecturer navigation">
+            <a class="nav-link active" href="#dashboard">
+                <i class="bi bi-grid-1x2-fill"></i>
+                <span>Dashboard</span>
+            </a>
+            <a class="nav-link" href="#projects">
+                <i class="bi bi-folder-fill"></i>
+                <span>Projects</span>
+            </a>
+            <a class="nav-link" href="#faculty">
+                <i class="bi bi-mortarboard-fill"></i>
+                <span>Faculty</span>
+            </a>
+            <a class="nav-link" href="#students">
+                <i class="bi bi-people-fill"></i>
+                <span>Students</span>
+            </a>
+            <a class="nav-link" href="#submissions">
+                <i class="bi bi-file-earmark-check-fill"></i>
+                <span>Submissions</span>
+            </a>
+            <a class="nav-link" href="#reports">
+                <i class="bi bi-bar-chart-line-fill"></i>
+                <span>Reports</span>
+            </a>
+            <a class="nav-link" href="#settings">
+                <i class="bi bi-gear-fill"></i>
+                <span>Settings</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="d-flex align-items-center gap-2 mb-2">
+                <div class="avatar"><?= e($lecturerInitials) ?></div>
+                <div class="min-w-0">
+                    <div class="fw-bold text-truncate"><?= e($lecturerName) ?></div>
+                    <small class="text-white-50">Lecturer</small>
+                </div>
+            </div>
+            <a class="text-white-50 small" href="logout.php">Logout</a>
+        </div>
+    </aside>
+
+    <main class="lecturer-main">
+        <header class="topbar">
+            <div class="welcome-text">
+                <span class="text-muted">Welcome,</span>
+                <strong><?= e($lecturerName) ?></strong>
+            </div>
+            <div class="d-flex align-items-center gap-2 gap-sm-3 ms-auto">
+                <button class="icon-button" type="button" aria-label="Notifications">
+                    <i class="bi bi-bell"></i>
+                </button>
+                <div class="profile-chip">
+                    <div class="avatar"><?= e($lecturerInitials) ?></div>
+                    <div class="profile-meta pe-1">
+                        <div class="fw-bold lh-sm"><?= e($lecturerName) ?></div>
+                        <small class="text-muted">UTM Lecturer</small>
+                    </div>
+                </div>
+                <a class="icon-button text-decoration-none" href="logout.php" aria-label="Sign out">
+                    <i class="bi bi-box-arrow-right"></i>
+                </a>
+            </div>
+        </header>
+
+        <div class="content">
+            <?php if ($flashMessage): ?>
+                <div class="alert alert-<?= e($flashType) ?> alert-dismissible fade show" role="alert">
+                    <?= e($flashMessage) ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            <?php endif; ?>
+
+            <section class="d-flex align-items-start justify-content-between flex-wrap gap-3 mb-4" id="dashboard">
+                <div>
+                    <h1 class="h3 fw-bold mb-1" style="color: var(--lecturer-maroon);">Academic Project Review</h1>
+                    <p class="text-muted mb-0">Dashboard Overview</p>
+                </div>
+            </section>
+
+            <section class="row g-4 mb-4">
+                <div class="col-12 col-sm-6 col-xl-3">
+                    <article class="stat-card">
+                        <div class="d-flex align-items-center justify-content-between gap-3">
+                            <div>
+                                <p class="text-muted fw-semibold mb-2">Total Projects</p>
+                                <strong class="stat-value"><?= e($totalProjects) ?></strong>
+                            </div>
+                            <div class="stat-icon"><i class="bi bi-folder2-open"></i></div>
+                        </div>
+                    </article>
+                </div>
+                <div class="col-12 col-sm-6 col-xl-3">
+                    <article class="stat-card">
+                        <div class="d-flex align-items-center justify-content-between gap-3">
+                            <div>
+                                <p class="text-muted fw-semibold mb-2">Pending Review</p>
+                                <strong class="stat-value text-warning"><?= e($pendingProjects) ?></strong>
+                            </div>
+                            <div class="stat-icon"><i class="bi bi-hourglass-split"></i></div>
+                        </div>
+                    </article>
+                </div>
+                <div class="col-12 col-sm-6 col-xl-3">
+                    <article class="stat-card">
+                        <div class="d-flex align-items-center justify-content-between gap-3">
+                            <div>
+                                <p class="text-muted fw-semibold mb-2">Approved</p>
+                                <strong class="stat-value text-success"><?= e($approvedProjects) ?></strong>
+                            </div>
+                            <div class="stat-icon"><i class="bi bi-check-circle-fill"></i></div>
+                        </div>
+                    </article>
+                </div>
+                <div class="col-12 col-sm-6 col-xl-3">
+                    <article class="stat-card">
+                        <div class="d-flex align-items-center justify-content-between gap-3">
+                            <div>
+                                <p class="text-muted fw-semibold mb-2">Assigned Students</p>
+                                <strong class="stat-value"><?= e($assignedStudents) ?></strong>
+                            </div>
+                            <div class="stat-icon"><i class="bi bi-people-fill"></i></div>
+                        </div>
+                    </article>
+                </div>
+            </section>
+
+            <section class="toolbar mb-4">
+                <div class="row g-3 align-items-center">
+                    <div class="col-12 col-lg">
+                        <div class="input-group">
+                            <span class="input-group-text search-control bg-white border-end-0"><i class="bi bi-search"></i></span>
+                            <input id="projectSearch" class="form-control search-control border-start-0" type="search" placeholder="Search projects or students...">
+                        </div>
+                    </div>
+                    <div class="col-12 col-sm-6 col-lg-3">
+                        <select id="yearFilter" class="form-select search-control">
+                            <option value="all">All Study Years</option>
+                            <?php foreach (array_unique(array_filter(array_column($projects, 'study_year'))) as $year): ?>
+                                <option value="<?= e($year) ?>">Year <?= e($year) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="col-12 col-sm-6 col-lg-3">
+                        <select id="statusFilter" class="form-select search-control">
+                            <option value="all">All Status</option>
+                            <option value="pending">Pending</option>
+                            <option value="approved">Approved</option>
+                            <option value="rejected">Rejected</option>
+                        </select>
+                    </div>
+                </div>
+            </section>
+
+            <section id="projects" class="mb-4">
+                <?php if (!$projects): ?>
+                    <div class="empty-state">
+                        <div>
+                            <i class="bi bi-folder2-open fs-2 d-block mb-2"></i>
+                            No data available
+                        </div>
+                    </div>
+                <?php else: ?>
+                    <div class="row g-4" id="projectGrid">
+                        <?php foreach ($projects as $project): ?>
+                            <?php
+                            $studentNames = array_column($project['students'], 'name');
+                            $searchText = strtolower($project['title'] . ' ' . implode(' ', $studentNames));
+                            $status = $project['status'];
+                            $submittedAt = $project['submitted_at']
+                                ? date('d/m/Y', strtotime((string) $project['submitted_at']))
+                                : 'No data available';
+                            ?>
+                            <div class="col-12 col-lg-6 col-xxl-4 project-item"
+                                 data-status="<?= e($status) ?>"
+                                 data-year="<?= e($project['study_year']) ?>"
+                                 data-search="<?= e($searchText) ?>">
+                                <article class="project-card">
+                                    <div class="d-flex align-items-start justify-content-between gap-3 mb-3">
+                                        <span class="status-badge status-<?= e($status) ?>"><?= e($statusLabels[$status] ?? $status) ?></span>
+                                        <small class="text-muted"><?= e($project['code']) ?></small>
+                                    </div>
+
+                                    <h2 class="project-title mb-2"><?= e($project['title']) ?></h2>
+                                    <div class="student-list mb-3">
+                                        <strong><?= e(count($studentNames)) ?> Student<?= count($studentNames) === 1 ? '' : 's' ?></strong>
+                                        <?php if ($studentNames): ?>
+                                            <?php foreach ($studentNames as $index => $studentName): ?>
+                                                <div><?= e($index + 1) ?>. <?= e($studentName) ?></div>
+                                            <?php endforeach; ?>
+                                        <?php else: ?>
+                                            <div>No data available</div>
+                                        <?php endif; ?>
+                                    </div>
+
+                                    <div class="meta-line">Submission Date: <?= e($submittedAt) ?></div>
+                                    <div class="meta-line">Study Year: <?= $project['study_year'] !== '' ? e($project['study_year']) : 'No data available' ?></div>
+
+                                    <div class="action-row">
+                                        <button class="btn btn-review btn-comment" type="button"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#commentModal"
+                                                data-project-id="<?= e($project['id']) ?>"
+                                                data-project-title="<?= e($project['title']) ?>">
+                                            Comment
+                                        </button>
+                                        <form method="post" class="d-inline">
+                                            <input type="hidden" name="project_id" value="<?= e($project['id']) ?>">
+                                            <input type="hidden" name="action" value="reject">
+                                            <button class="btn btn-review btn-reject" type="submit">Reject</button>
+                                        </form>
+                                        <form method="post" class="d-inline">
+                                            <input type="hidden" name="project_id" value="<?= e($project['id']) ?>">
+                                            <input type="hidden" name="action" value="approve">
+                                            <button class="btn btn-review btn-approve" type="submit">Approve</button>
+                                        </form>
+                                    </div>
+                                </article>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <div class="empty-state d-none" id="filteredEmpty">No data available</div>
+                <?php endif; ?>
+            </section>
+
+            <section class="dashboard-card" id="students">
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-3">
+                    <div>
+                        <h2 class="h5 fw-bold mb-1">Assigned Students</h2>
+                        <p class="text-muted mb-0">Students attached to your supervised projects</p>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Student</th>
+                                <th>Project</th>
+                                <th>Status</th>
+                                <th>Submitted</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (!$projects || !$assignedStudents): ?>
+                                <tr><td colspan="4" class="text-center text-muted py-5">No data available</td></tr>
+                            <?php else: ?>
+                                <?php foreach ($projects as $project): ?>
+                                    <?php foreach ($project['students'] as $student): ?>
+                                        <tr>
+                                            <td class="fw-semibold"><?= e($student['name']) ?></td>
+                                            <td><?= e($project['title']) ?></td>
+                                            <td><span class="status-badge status-<?= e($project['status']) ?>"><?= e($statusLabels[$project['status']] ?? $project['status']) ?></span></td>
+                                            <td><?= $project['submitted_at'] ? e(date('d/m/Y', strtotime((string) $project['submitted_at']))) : 'No data available' ?></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </main>
+</div>
+
+<div class="modal fade" id="commentModal" tabindex="-1" aria-labelledby="commentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form class="modal-content" method="post">
+            <div class="modal-header">
+                <div>
+                    <h2 class="modal-title h5 fw-bold" id="commentModalLabel">Add Feedback</h2>
+                    <p class="text-muted mb-0 small" id="commentProjectTitle">Project feedback</p>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" name="action" value="comment">
+                <input type="hidden" name="project_id" id="commentProjectId">
+                <label class="form-label fw-semibold" for="commentText">Comment</label>
+                <textarea class="form-control" id="commentText" name="comment" rows="5" placeholder="Write your feedback or revision notes..." required></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-warning fw-bold">Submit Feedback</button>
+            </div>
+        </form>
     </div>
-    <div class="card-meta">
-      <strong>Students:</strong> ${p.students}<br>
-      <strong>Supervisor:</strong> ${p.supervisor}<br>
-      <strong>Submitted:</strong> ${p.date}
-    </div>
-    <div class="card-actions">
-      <button class="btn btn-approve" onclick="approveProject('${p.id}')">✓ Approve</button>
-      <button class="btn btn-reject" onclick="rejectProject('${p.id}')">✕ Reject</button>
-      <button class="btn btn-comment" onclick="openCommentModal('${p.id}','${p.title}')">💬 Comment</button>
-    </div>
-  </div>`;
-}
+</div>
 
-function buildGradeCard(p) {
-  return `<div class="project-card">
-    <div class="card-top">
-      <div>
-        <div class="card-id">${p.id}</div>
-        <div class="card-title">${p.title}</div>
-      </div>
-      <span class="badge approved">Graded</span>
-    </div>
-    <div class="card-meta">
-      <strong>Students:</strong> ${p.students}<br>
-      <strong>Total Marks:</strong> 78 / 100<br>
-      <strong>Grade:</strong> A-
-    </div>
-    <div class="card-actions">
-      <button class="btn btn-grades" onclick="openMarksModal({title:'${p.title}',id:'${p.id}'})">✏ Edit Marks</button>
-      <button class="btn btn-comment" onclick="openCommentModal('${p.id}','${p.title}')">💬 Feedback</button>
-    </div>
-  </div>`;
-}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    const searchInput = document.getElementById('projectSearch');
+    const statusFilter = document.getElementById('statusFilter');
+    const yearFilter = document.getElementById('yearFilter');
+    const projectItems = Array.from(document.querySelectorAll('.project-item'));
+    const filteredEmpty = document.getElementById('filteredEmpty');
 
-function renderCards() {
-  const grid = document.getElementById('cards-grid');
-  let filtered = projects.filter(p => {
-    const matchFilter = currentFilter === 'all' || p.status === currentFilter;
-    const matchSearch = !currentSearch || p.title.toLowerCase().includes(currentSearch) || p.students.toLowerCase().includes(currentSearch);
-    return matchFilter && matchSearch;
-  });
-  const total = filtered.length;
-  const pages = Math.ceil(total / ITEMS_PER_PAGE);
-  if (currentPage > pages) currentPage = 1;
-  const start = (currentPage - 1) * ITEMS_PER_PAGE;
-  const slice = filtered.slice(start, start + ITEMS_PER_PAGE);
-  grid.innerHTML = slice.length ? slice.map(buildCard).join('') : '<p style="color:var(--muted);font-size:14px;padding:24px 0">No projects found.</p>';
-  renderPagination(pages);
-}
+    function applyFilters() {
+        const query = (searchInput?.value || '').trim().toLowerCase();
+        const status = statusFilter?.value || 'all';
+        const year = yearFilter?.value || 'all';
+        let visible = 0;
 
-function renderPagination(pages) {
-  const pg = document.getElementById('pagination');
-  if (pages <= 1) { pg.innerHTML = ''; return; }
-  let html = `<button class="pg-btn" onclick="goPage(${currentPage-1})" ${currentPage===1?'disabled':''}>‹</button>`;
-  for (let i=1;i<=pages;i++) html += `<button class="pg-btn ${i===currentPage?'active':''}" onclick="goPage(${i})">${i}</button>`;
-  html += `<button class="pg-btn" onclick="goPage(${currentPage+1})" ${currentPage===pages?'disabled':''}>›</button>`;
-  pg.innerHTML = html;
-}
+        projectItems.forEach((item) => {
+            const matchesSearch = !query || item.dataset.search.includes(query);
+            const matchesStatus = status === 'all' || item.dataset.status === status;
+            const matchesYear = year === 'all' || item.dataset.year === year;
+            const shouldShow = matchesSearch && matchesStatus && matchesYear;
+            item.classList.toggle('d-none', !shouldShow);
+            if (shouldShow) visible++;
+        });
 
-function goPage(n) { const pages = Math.ceil(projects.filter(p => currentFilter==='all'||p.status===currentFilter).length / ITEMS_PER_PAGE); if (n<1||n>pages) return; currentPage=n; renderCards(); }
+        if (filteredEmpty) {
+            filteredEmpty.classList.toggle('d-none', visible !== 0);
+        }
+    }
 
-function filterCards(f, el) {
-  currentFilter = f; currentPage = 1;
-  document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
-  if (el) el.classList.add('active');
-  renderCards();
-}
-function searchCards(v) { currentSearch = v.toLowerCase(); currentPage = 1; renderCards(); }
+    searchInput?.addEventListener('input', applyFilters);
+    statusFilter?.addEventListener('change', applyFilters);
+    yearFilter?.addEventListener('change', applyFilters);
 
-function renderReviewQueue() {
-  const grid = document.getElementById('review-grid');
-  const pending = projects.filter(p => p.status === 'pending' || p.status === 'revision');
-  grid.innerHTML = pending.map(buildCard).join('');
-}
-
-function renderGrades() {
-  const grid = document.getElementById('grades-grid');
-  grid.innerHTML = projects.slice(0,6).map(buildGradeCard).join('');
-}
-
-// ── ACTIONS ──
-function approveProject(id) {
-  const p = projects.find(x => x.id===id);
-  if (p) { p.status = 'approved'; renderCards(); renderReviewQueue(); showToast(`"${p.title.substring(0,30)}…" approved!`, 'success'); }
-}
-function rejectProject(id) {
-  const p = projects.find(x => x.id===id);
-  if (p) { p.status = 'rejected'; renderCards(); renderReviewQueue(); showToast(`Submission rejected.`, 'error'); }
-}
-function openCommentModal(id, title) {
-  activeCommentProject = id;
-  document.getElementById('comment-modal-sub').textContent = title.length > 45 ? title.substring(0,45)+'…' : title;
-  document.getElementById('comment-text').value = '';
-  document.getElementById('comment-modal').classList.add('open');
-}
-function submitComment() {
-  const txt = document.getElementById('comment-text').value.trim();
-  if (!txt) { showToast('Please enter your feedback.', 'error'); return; }
-  closeModal('comment-modal');
-  showToast('Feedback submitted successfully!', 'success');
-}
-function openMarksModal(p) {
-  document.getElementById('marks-modal-sub').textContent = p.title.length > 45 ? p.title.substring(0,45)+'…' : p.title;
-  document.getElementById('marks-modal').classList.add('open');
-}
-function submitMarks() {
-  closeModal('marks-modal');
-  showToast('Marks saved successfully!', 'success');
-}
-function closeModal(id) { document.getElementById(id).classList.remove('open'); }
-
-// ── NAVIGATION ──
-const sections = ['projects','submissions','review','students','grades','reports','settings'];
-const sectionTitles = { projects:'Academic Project Review', submissions:'Project Submissions', review:'Review Queue', students:'Assigned Students', grades:'Final Grades', reports:'Reports', settings:'Settings' };
-function showSection(sec, el) {
-  sections.forEach(s => document.getElementById('sec-'+s).classList.add('hidden'));
-  document.getElementById('sec-'+sec).classList.remove('hidden');
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  if (el) el.classList.add('active');
-  document.getElementById('topbar-title').textContent = sectionTitles[sec];
-  if (sec==='review') renderReviewQueue();
-  if (sec==='grades') renderGrades();
-}
-
-// ── TOAST ──
-let toastTimer;
-function showToast(msg, type='success') {
-  const t = document.getElementById('toast');
-  t.textContent = msg; t.className = 'toast '+type+' show';
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('show'), 3200);
-}
-
-// ── KEYBOARD ──
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { closeModal('comment-modal'); closeModal('marks-modal'); }
-});
-
-// Close modals on overlay click
-document.querySelectorAll('.modal-overlay').forEach(o => o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); }));
-
-// New doLogout function
-function doLogout() {
-  window.location.href = 'login.php'; // Or logout.php if it handles session destruction
-}
+    const commentModal = document.getElementById('commentModal');
+    commentModal?.addEventListener('show.bs.modal', (event) => {
+        const button = event.relatedTarget;
+        document.getElementById('commentProjectId').value = button?.dataset.projectId || '';
+        document.getElementById('commentProjectTitle').textContent = button?.dataset.projectTitle || 'Project feedback';
+        document.getElementById('commentText').value = '';
+    });
 </script>
 </body>
 </html>

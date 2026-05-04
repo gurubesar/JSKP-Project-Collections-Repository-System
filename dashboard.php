@@ -163,6 +163,74 @@ function initialsFromName(string $name): string
     return implode('', array_slice($letters, 0, 2)) ?: 'ST';
 }
 
+function createRoleUser(PDO $db, string $role, array $data, int $adminId): void
+{
+    $name = trim((string) ($data['name'] ?? ''));
+    $email = trim((string) ($data['email'] ?? ''));
+    $password = (string) ($data['password'] ?? '');
+
+    if ($name === '' || $email === '' || $password === '') {
+        throw new InvalidArgumentException('Name, email, and password are required.');
+    }
+
+    $db->beginTransaction();
+
+    try {
+        $insertUser = $db->prepare(
+            'INSERT INTO users (name_encrypted, email_hash, email_encrypted, password_hash, role, created_by)
+             VALUES (?, ?, ?, ?, ?, ?)'
+        );
+        $insertUser->execute([
+            encryptData($name),
+            hashEmail($email),
+            encryptData($email),
+            password_hash($password, PASSWORD_BCRYPT),
+            $role,
+            $adminId ?: null,
+        ]);
+
+        $userId = (int) $db->lastInsertId();
+        if (dbDriver($db) === 'pgsql') {
+            $userId = (int) $db->query("SELECT currval(pg_get_serial_sequence('users', 'user_id'))")->fetchColumn();
+        }
+
+        if ($role === 'student') {
+            $matricNo = trim((string) ($data['matric_no'] ?? ''));
+            $course = trim((string) ($data['course'] ?? ''));
+            $intake = trim((string) ($data['intake'] ?? ''));
+
+            if ($matricNo === '' || $course === '' || $intake === '') {
+                throw new InvalidArgumentException('Matric number, course, and intake are required.');
+            }
+
+            $insertStudent = $db->prepare(
+                'INSERT INTO students (user_id, matric_no, course, intake) VALUES (?, ?, ?, ?)'
+            );
+            $insertStudent->execute([$userId, $matricNo, $course, $intake]);
+        } elseif ($role === 'lecturer') {
+            $staffId = trim((string) ($data['staff_id'] ?? ''));
+            $department = trim((string) ($data['department'] ?? ''));
+
+            if ($staffId === '' || $department === '') {
+                throw new InvalidArgumentException('Staff ID and department are required.');
+            }
+
+            $insertLecturer = $db->prepare(
+                'INSERT INTO lecturers (user_id, staff_id, department) VALUES (?, ?, ?)'
+            );
+            $insertLecturer->execute([$userId, $staffId, $department]);
+        }
+
+        $db->commit();
+    } catch (Throwable $error) {
+        if ($db->inTransaction()) {
+            $db->rollBack();
+        }
+
+        throw $error;
+    }
+}
+
 function monthlyStudentCounts(PDO $db): array
 {
     $labels = [];
@@ -175,7 +243,9 @@ function monthlyStudentCounts(PDO $db): array
         $values[$month->format('Y-m')] = 0;
     }
 
-    $sourceTable = tableExists($db, 'students') ? 'students' : 'users';
+    $sourceTable = tableExists($db, 'students') && firstExistingColumn($db, 'students', ['created_at', 'registered_at', 'enrolled_at', 'updated_at'])
+        ? 'students'
+        : 'users';
     $dateColumn = firstExistingColumn($db, $sourceTable, ['created_at', 'registered_at', 'enrolled_at', 'updated_at']);
     if (!$dateColumn) {
         return [$labels, array_values($values)];
@@ -214,7 +284,7 @@ function weeklyCounts(PDO $db, string $table, array $dateColumns): array
     $counts = array_fill(0, 7, 0);
     $roleFilter = '';
 
-    if (!tableExists($db, $table) && $table === 'lecturers' && tableExists($db, 'users')) {
+    if ($table === 'lecturers' && (!tableExists($db, $table) || !firstExistingColumn($db, $table, $dateColumns)) && tableExists($db, 'users')) {
         $table = 'users';
         $roleFilter = " AND role = 'lecturer'";
     }
@@ -255,8 +325,25 @@ function weeklyCounts(PDO $db, string $table, array $dateColumns): array
 function recentStudents(PDO $db): array
 {
     if (tableExists($db, 'students')) {
-        $orderColumn = firstExistingColumn($db, 'students', ['id', 'student_id', 'created_at']) ?: 'id';
-        return fetchRows($db, "SELECT * FROM students ORDER BY {$orderColumn} DESC LIMIT 5");
+        $rows = fetchRows(
+            $db,
+            "SELECT s.student_id, s.matric_no, s.course, s.intake, u.name_encrypted, u.created_at
+             FROM students s
+             INNER JOIN users u ON u.user_id = s.user_id
+             ORDER BY s.student_id DESC
+             LIMIT 5"
+        );
+
+        return array_map(static function (array $row): array {
+            return [
+                'name' => isset($row['name_encrypted']) ? decryptData($row['name_encrypted']) : '',
+                'student_id' => $row['matric_no'] ?? '',
+                'faculty' => '',
+                'program' => $row['course'] ?? '',
+                'intake' => $row['intake'] ?? '',
+                'status' => 'Active',
+            ];
+        }, $rows);
     }
 
     if (!tableExists($db, 'users') || !columnExists($db, 'users', 'role')) {
@@ -278,6 +365,28 @@ function recentStudents(PDO $db): array
             'status' => 'Active',
         ];
     }, $rows);
+}
+
+$adminFlash = '';
+$adminFlashType = 'success';
+
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+    $adminAction = $_POST['admin_action'] ?? '';
+
+    try {
+        if ($adminAction === 'create_student') {
+            createRoleUser($db, 'student', $_POST, (int) ($_SESSION['user_id'] ?? 0));
+            $adminFlash = 'Student account created successfully.';
+        } elseif ($adminAction === 'create_lecturer') {
+            createRoleUser($db, 'lecturer', $_POST, (int) ($_SESSION['user_id'] ?? 0));
+            $adminFlash = 'Lecturer account created successfully.';
+        }
+    } catch (Throwable $error) {
+        $adminFlash = $error instanceof InvalidArgumentException
+            ? $error->getMessage()
+            : 'Unable to create account. Check for duplicate email, matric number, or staff ID.';
+        $adminFlashType = 'danger';
+    }
 }
 
 $totalStudents = countEntity($db, 'students', 'student');
@@ -328,10 +437,27 @@ $stats = [
         </header>
 
         <div class="main-content">
+            <?php if ($adminFlash): ?>
+                <div class="alert alert-<?= h($adminFlashType) ?> alert-dismissible fade show" role="alert">
+                    <?= h($adminFlash) ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            <?php endif; ?>
+
             <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-4">
                 <div>
                     <h1 class="h3 fw-bold mb-1">Dashboard Overview</h1>
                     <p class="text-muted mb-0">University administration summary from your database.</p>
+                </div>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <button class="btn btn-warning fw-bold" type="button" data-bs-toggle="modal" data-bs-target="#addStudentModal">
+                        <i class="bi bi-person-plus-fill me-1"></i>
+                        Add Student
+                    </button>
+                    <button class="btn btn-outline-dark fw-bold" type="button" data-bs-toggle="modal" data-bs-target="#addLecturerModal">
+                        <i class="bi bi-person-video3 me-1"></i>
+                        Add Lecturer
+                    </button>
                 </div>
             </div>
 
@@ -449,6 +575,96 @@ $stats = [
             </section>
         </div>
     </main>
+</div>
+
+<div class="modal fade" id="addStudentModal" tabindex="-1" aria-labelledby="addStudentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <form class="modal-content" method="post">
+            <div class="modal-header">
+                <div>
+                    <h2 class="modal-title h5 fw-bold" id="addStudentModalLabel">Add Student Account</h2>
+                    <p class="text-muted small mb-0">Creates a login in users and a student profile.</p>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" name="admin_action" value="create_student">
+                <div class="row g-3">
+                    <div class="col-12 col-md-6">
+                        <label class="form-label fw-semibold" for="studentName">Full Name</label>
+                        <input class="form-control" id="studentName" name="name" required>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label fw-semibold" for="studentEmail">Email</label>
+                        <input class="form-control" id="studentEmail" name="email" type="email" required>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label fw-semibold" for="studentPassword">Password</label>
+                        <input class="form-control" id="studentPassword" name="password" type="password" required>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label fw-semibold" for="studentMatric">Matric No</label>
+                        <input class="form-control" id="studentMatric" name="matric_no" required>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label fw-semibold" for="studentCourse">Course</label>
+                        <input class="form-control" id="studentCourse" name="course" required>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label fw-semibold" for="studentIntake">Intake</label>
+                        <input class="form-control" id="studentIntake" name="intake" placeholder="2023/2024" required>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-warning fw-bold">Create Student</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal fade" id="addLecturerModal" tabindex="-1" aria-labelledby="addLecturerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <form class="modal-content" method="post">
+            <div class="modal-header">
+                <div>
+                    <h2 class="modal-title h5 fw-bold" id="addLecturerModalLabel">Add Lecturer Account</h2>
+                    <p class="text-muted small mb-0">Creates a login in users and a lecturer profile.</p>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" name="admin_action" value="create_lecturer">
+                <div class="row g-3">
+                    <div class="col-12 col-md-6">
+                        <label class="form-label fw-semibold" for="lecturerName">Full Name</label>
+                        <input class="form-control" id="lecturerName" name="name" required>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label fw-semibold" for="lecturerEmail">Email</label>
+                        <input class="form-control" id="lecturerEmail" name="email" type="email" required>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label fw-semibold" for="lecturerPassword">Password</label>
+                        <input class="form-control" id="lecturerPassword" name="password" type="password" required>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label fw-semibold" for="lecturerStaffId">Staff ID</label>
+                        <input class="form-control" id="lecturerStaffId" name="staff_id" required>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-semibold" for="lecturerDepartment">Department</label>
+                        <input class="form-control" id="lecturerDepartment" name="department" required>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-warning fw-bold">Create Lecturer</button>
+            </div>
+        </form>
+    </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

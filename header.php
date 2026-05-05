@@ -1,6 +1,13 @@
 <?php
 $adminName = trim((string) ($_SESSION['user_name'] ?? 'Admin'));
 $adminInitial = strtoupper(substr($adminName, 0, 1)) ?: 'A';
+
+if (!function_exists('h')) {
+    function h($value): string
+    {
+        return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">

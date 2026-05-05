@@ -8,15 +8,15 @@
     </div>
 
     <nav class="sidebar-nav" aria-label="Admin navigation">
-        <a class="sidebar-link active" href="admin_dashboard.php">
+        <a class="sidebar-link<?= basename($_SERVER['PHP_SELF']) === 'admin_dashboard.php' ? ' active' : '' ?>" href="admin_dashboard.php">
             <i class="bi bi-grid-1x2-fill"></i>
             <span>Dashboard</span>
         </a>
-        <a class="sidebar-link" href="#">
+        <a class="sidebar-link<?= basename($_SERVER['PHP_SELF']) === 'admin_students.php' ? ' active' : '' ?>" href="admin_students.php">
             <i class="bi bi-mortarboard-fill"></i>
             <span>Students</span>
         </a>
-        <a class="sidebar-link" href="#">
+        <a class="sidebar-link<?= basename($_SERVER['PHP_SELF']) === 'admin_lecturers.php' ? ' active' : '' ?>" href="admin_lecturers.php">
             <i class="bi bi-person-video3"></i>
             <span>Lecturers</span>
         </a>

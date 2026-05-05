@@ -9,5 +9,5 @@ if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== tru
 }
 
 require_once __DIR__ . '/db.php';
-require __DIR__ . '/header.php';
-require __DIR__ . '/dashboard.php';
+require __DIR__ . '/admin_header.php';
+require __DIR__ . '/admin_dashboard_content.php';

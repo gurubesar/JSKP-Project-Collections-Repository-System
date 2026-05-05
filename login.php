@@ -1,5 +1,6 @@
 <?php
 session_start();
+session_regenerate_id(true); // Prevent session fixation
 require __DIR__ . '/db.php';
 
 try {
@@ -48,10 +49,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     header('Location: student_dashboard.php');
                     exit;
                 }
-
-                $error = 'Your account role is not configured correctly.';
-            } else {
-                $error = 'Invalid email or password.';
             }
         } catch (PDOException $e) {
             $error = 'Database error: ' . $e->getMessage();

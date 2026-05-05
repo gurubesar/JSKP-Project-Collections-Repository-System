@@ -192,7 +192,7 @@ unset($_SESSION['admin_flash'], $_SESSION['admin_flash_type']);
 ?>
 
 <div class="admin-shell">
-    <?php require __DIR__ . '/sidebar.php'; ?>
+    <?php require __DIR__ . '/admin_sidebar.php'; ?>
 
     <main>
         <header class="top-navbar d-flex align-items-center justify-content-between px-3 px-lg-4">

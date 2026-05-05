@@ -113,10 +113,15 @@ if (!function_exists('h')) {
         }
 
         .top-navbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+            margin-bottom: 28px;
+            padding: 18px 24px;
             position: sticky;
             top: 0;
             z-index: 1020;
-            min-height: 76px;
             background: rgba(255, 255, 255, 0.92);
             border-bottom: 1px solid var(--admin-border);
             backdrop-filter: blur(12px);

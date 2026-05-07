@@ -1,6 +1,6 @@
 <?php
 session_start();
-require __DIR__ . '/db.php';
+require __DIR__ . '/../database/db.php';
 
 $message = '';
 $messageType = '';
@@ -155,7 +155,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <p class="login-label">Account Recovery</p>
                     <h1 class="login-title">Forgot Password</h1>
                 </div>
-                <img class="brand-badge" src="assets/utm-logo.png" alt="UTM logo"
+                <img class="brand-badge" src="../assets/utm-logo.png" alt="UTM logo"
                      onerror="this.outerHTML='<div style=\'width:64px;height:64px;border-radius:16px;background:#800020;display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;font-weight:800;\'>UTM</div>'">
             </div>
 

@@ -1,7 +1,7 @@
 <?php
 session_start();
 session_regenerate_id(true); // Prevent session fixation
-require __DIR__ . '/db.php';
+require __DIR__ . '/../database/db.php';
 
 try {
     $db->query('SELECT 1 FROM users LIMIT 1');
@@ -35,18 +35,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 if ($user['role'] === 'admin') {
                     $_SESSION['admin_logged_in'] = true;
-                    header('Location: admin_dashboard.php');
+                    header('Location: ../admin/admin_dashboard.php');
                     exit;
                 }
 
                 if ($user['role'] === 'lecturer') {
                     $_SESSION['lecturer_logged_in'] = true;
-                    header('Location: Lecturer_dashboard.php');
+                    header('Location: ../lecturer/Lecturer_dashboard.php');
                     exit;
                 }
 
                 if ($user['role'] === 'student') {
-                    header('Location: student_dashboard.php');
+                    header('Location: ../student/student_dashboard.php');
                     exit;
                 }
             }
@@ -221,7 +221,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <p class="login-label">Sign In</p>
                     <h1 class="login-title">UTM Submission Portal</h1>
                 </div>
-                <img class="brand-badge" src="assets/utm-logo.png" alt="UTM logo">
+                <img class="brand-badge" src="../assets/utm-logo.png" alt="UTM logo">
             </div>
 
             <div class="login-subtitle">Access your Admin, Lecturer or Student dashboard.</div>
@@ -242,7 +242,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
 
                 <div class="form-footer">
-                    <a href="#" class="forgot-link">Forgot your password?</a>
+                    <a href="forgot_password.php" class="forgot-link">Forgot your password?</a>
                     <button type="submit" class="btn btn-login">Login</button>
                 </div>
             </form>

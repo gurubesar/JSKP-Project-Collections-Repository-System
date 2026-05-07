@@ -1,6 +1,6 @@
 <aside class="sidebar">
     <div class="sidebar-brand">
-        <img class="utm-logo" src="assets/utm-logo.png" alt="UTM logo">
+        <img class="utm-logo" src="../assets/utm-logo.png" alt="UTM logo">
         <div>
             <p class="brand-title">UTM</p>
             <span class="brand-subtitle">Universiti Teknologi Malaysia<br>Admin System</span>

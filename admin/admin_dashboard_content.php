@@ -427,7 +427,7 @@ $stats = [
                         <small class="text-muted">UTM Administrator</small>
                     </div>
                 </div>
-                <a class="icon-button text-decoration-none" href="logout.php" aria-label="Sign out">
+                <a class="icon-button text-decoration-none" href="../public/logout.php" aria-label="Sign out">
                     <i class="bi bi-box-arrow-right"></i>
                 </a>
             </div>

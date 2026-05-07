@@ -1,6 +1,6 @@
 <aside class="sidebar d-flex flex-column">
     <div class="brand">
-        <img class="brand-mark" src="assets/utm-logo.png" alt="UTM logo">
+        <img class="brand-mark" src="../assets/utm-logo.png" alt="UTM logo">
         <div>
             <p class="brand-title">UTM</p>
             <div class="brand-subtitle">Universiti Teknologi Malaysia<br>Academic Review</div>
@@ -46,6 +46,6 @@
                 <small class="text-muted">Lecturer</small>
             </div>
         </div>
-        <a class="text-muted small" href="logout.php">Logout</a>
+        <a class="text-muted small" href="../public/logout.php">Logout</a>
     </div>
 </aside>

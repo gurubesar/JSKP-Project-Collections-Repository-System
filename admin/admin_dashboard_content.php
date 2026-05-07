@@ -386,6 +386,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 
 $totalStudents = countEntity($db, 'students', 'student');
 $totalLecturers = countEntity($db, 'lecturers', 'lecturer');
+$totalAdmins = countUsersByRole($db, 'admin');
 $activeProjects = countTable($db, 'projects');
 $totalSubmissions = countTable($db, 'submissions');
 $totalRevenue = sumColumn($db, 'payments', 'amount');
@@ -400,6 +401,7 @@ $weeklyLecturers = weeklyCounts($db, 'lecturers', ['created_at', 'joined_at', 'u
 $stats = [
     ['title' => 'Total Students', 'value' => number_format($totalStudents), 'icon' => 'bi-mortarboard-fill', 'change' => '+2.3%'],
     ['title' => 'Total Lecturers', 'value' => number_format($totalLecturers), 'icon' => 'bi-person-video3', 'change' => '+0.8%'],
+    ['title' => 'Total Admins', 'value' => number_format($totalAdmins), 'icon' => 'bi-shield-lock-fill', 'change' => '+0.0%'],
     ['title' => 'Active Projects', 'value' => number_format($activeProjects), 'icon' => 'bi-folder2-open', 'change' => '+5.5%'],
     ['title' => 'Total Submissions', 'value' => number_format($totalSubmissions), 'icon' => 'bi-file-earmark-check-fill', 'change' => '+1.2%'],
     ['title' => 'Total Revenue', 'value' => 'RM ' . number_format($totalRevenue, 2), 'icon' => 'bi-cash-coin', 'change' => '+6.1%'],
@@ -425,7 +427,7 @@ $stats = [
                         <small class="text-muted">UTM Administrator</small>
                     </div>
                 </div>
-                <a class="icon-button text-decoration-none" href="logout.php" aria-label="Sign out">
+                <a class="icon-button text-decoration-none" href="../public/logout.php" aria-label="Sign out">
                     <i class="bi bi-box-arrow-right"></i>
                 </a>
             </div>

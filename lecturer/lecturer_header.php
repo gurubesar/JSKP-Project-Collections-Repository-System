@@ -4,11 +4,11 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 if (!isset($_SESSION['lecturer_logged_in']) || $_SESSION['lecturer_logged_in'] !== true) {
-    header('Location: login.php');
+    header('Location: ../public/login.php');
     exit;
 }
 
-require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/../database/db.php';
 
 function e($value): string
 {
@@ -177,7 +177,7 @@ $assignedStudents = count($studentMap);
     <title>UTM Academic Project Review</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="utm-theme.css">
+    <link rel="stylesheet" href="../public/utm-theme.css">
     <style>
         :root {
             --lecturer-maroon: #800020;
@@ -538,7 +538,7 @@ $assignedStudents = count($studentMap);
                         <small class="text-muted">UTM Lecturer</small>
                     </div>
                 </div>
-                <a class="icon-button text-decoration-none" href="logout.php" aria-label="Sign out">
+                <a class="icon-button text-decoration-none" href="../public/logout.php" aria-label="Sign out">
                     <i class="bi bi-box-arrow-right"></i>
                 </a>
             </div>

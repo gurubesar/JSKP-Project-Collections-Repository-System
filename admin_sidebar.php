@@ -20,9 +20,9 @@
             <i class="bi bi-person-video3"></i>
             <span>Lecturers</span>
         </a>
-        <a class="sidebar-link" href="#">
-            <i class="bi bi-people-fill"></i>
-            <span>Staff</span>
+        <a class="sidebar-link<?= basename($_SERVER['PHP_SELF']) === 'admin_admins.php' ? ' active' : '' ?>" href="admin_admins.php">
+            <i class="bi bi-shield-lock-fill"></i>
+            <span>Admin</span>
         </a>
         <a class="sidebar-link" href="#">
             <i class="bi bi-folder2-open"></i>

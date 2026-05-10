@@ -48,19 +48,18 @@ try {
              p.project_id,
              p.title_encrypted,
              p.study_year,
-             latest.status,
-             latest.submitted_at
+             sub.status,
+             sub.submitted_at
          FROM project_members pm
          INNER JOIN users u ON u.user_id = pm.user_id
          INNER JOIN students s ON s.user_id = u.user_id
          INNER JOIN projects p ON p.project_id = pm.project_id AND p.lecturer_id = ?
-         LEFT JOIN LATERAL (
-             SELECT status, submitted_at
-             FROM submissions
-             WHERE submissions.project_id = pm.project_id
+         LEFT JOIN submissions sub ON sub.submission_id = (
+             SELECT submission_id FROM submissions
+             WHERE project_id = pm.project_id
              ORDER BY submitted_at DESC
              LIMIT 1
-         ) latest ON TRUE
+         )
          ORDER BY u.user_id ASC, p.project_id ASC"
     );
     $stmt->execute([$lecturerId]);

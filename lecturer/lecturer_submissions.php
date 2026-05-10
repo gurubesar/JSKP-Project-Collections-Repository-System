@@ -4,11 +4,11 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 if (!isset($_SESSION['lecturer_logged_in']) || $_SESSION['lecturer_logged_in'] !== true) {
-    header('Location: login.php');
+    header('Location: ../public/login.php');
     exit;
 }
 
-require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/../database/db.php';
 
 function e($value): string
 {
@@ -184,7 +184,7 @@ $rejectedProjects = count(array_filter($projects, static fn($p) => $p['status'] 
     <title>Student Submissions – UTM Lecturer Portal</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="utm-theme.css">
+    <link rel="stylesheet" href="../public/utm-theme.css">
     <style>
         :root {
             --lecturer-maroon: #800020; --lecturer-maroon-dark: #540014;
@@ -195,7 +195,7 @@ $rejectedProjects = count(array_filter($projects, static fn($p) => $p['status'] 
         }
         body { margin:0; min-height:100vh; background:var(--lecturer-bg); color:var(--lecturer-text); font-family:Inter,system-ui,sans-serif; }
         .lecturer-shell { min-height:100vh; padding-left:270px; }
-        .sidebar { position:fixed; inset:0 auto 0 0; width:270px; overflow-y:auto; background:linear-gradient(180deg,#fffcf4 0%,#f8f0df 100%); border-right:1px solid rgba(128,0,32,.12); box-shadow:12px 0 32px rgba(84,0,20,.1); }
+        .sidebar { position:fixed; inset:0 auto 0 0; width:270px; overflow-y:auto; z-index:30; background:linear-gradient(180deg,#fffcf4 0%,#f8f0df 100%); border-right:1px solid rgba(128,0,32,.12); box-shadow:12px 0 32px rgba(84,0,20,.1); }
         .brand { min-height:105px; padding:24px 20px; display:flex; align-items:center; gap:12px; border-bottom:1px solid rgba(128,0,32,.12); }
         .brand-mark { width:64px; height:64px; object-fit:contain; }
         .brand-title { margin:0; color:var(--lecturer-maroon); font-weight:800; font-size:1.25rem; }
@@ -243,7 +243,7 @@ $rejectedProjects = count(array_filter($projects, static fn($p) => $p['status'] 
     <!-- Sidebar -->
     <aside class="sidebar d-flex flex-column">
         <div class="brand">
-            <img class="brand-mark" src="assets/utm-logo.png" alt="UTM logo"
+            <img class="brand-mark" src="../assets/utm-logo.png" alt="UTM logo"
                  onerror="this.outerHTML='<div style=\'width:64px;height:64px;border-radius:50%;background:rgba(128,0,32,.15);display:flex;align-items:center;justify-content:center;color:#800020;font-weight:800;\'>UTM</div>'">
             <div>
                 <p class="brand-title">UTM</p>
@@ -264,7 +264,7 @@ $rejectedProjects = count(array_filter($projects, static fn($p) => $p['status'] 
                     <small class="text-muted">Lecturer</small>
                 </div>
             </div>
-            <a class="text-muted small" href="logout.php">Logout</a>
+            <a class="text-muted small" href="../public/logout.php">Logout</a>
         </div>
     </aside>
 
@@ -280,7 +280,7 @@ $rejectedProjects = count(array_filter($projects, static fn($p) => $p['status'] 
                         <small class="text-muted">UTM Lecturer</small>
                     </div>
                 </div>
-                <a class="icon-button text-decoration-none" href="logout.php"><i class="bi bi-box-arrow-right"></i></a>
+                <a class="icon-button text-decoration-none" href="../public/logout.php"><i class="bi bi-box-arrow-right"></i></a>
             </div>
         </header>
 

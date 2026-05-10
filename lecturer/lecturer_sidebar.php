@@ -1,3 +1,4 @@
+<?php $currentPage = basename($_SERVER['PHP_SELF']); ?>
 <aside class="sidebar d-flex flex-column">
     <div class="brand">
         <img class="brand-mark" src="../assets/utm-logo.png" alt="UTM logo">
@@ -8,31 +9,31 @@
     </div>
 
     <nav class="sidebar-nav" aria-label="Lecturer navigation">
-        <a class="nav-link active" href="#dashboard">
+        <a class="nav-link <?= $currentPage === 'Lecturer_dashboard.php' ? 'active' : '' ?>" href="Lecturer_dashboard.php">
             <i class="bi bi-grid-1x2-fill"></i>
             <span>Dashboard</span>
         </a>
-        <a class="nav-link" href="#projects">
+        <a class="nav-link" href="Lecturer_dashboard.php#projects">
             <i class="bi bi-folder-fill"></i>
             <span>Projects</span>
         </a>
-        <a class="nav-link" href="#faculty">
+        <a class="nav-link" href="#">
             <i class="bi bi-mortarboard-fill"></i>
             <span>Faculty</span>
         </a>
-        <a class="nav-link" href="#students">
+        <a class="nav-link <?= $currentPage === 'lecturer_students.php' ? 'active' : '' ?>" href="lecturer_students.php">
             <i class="bi bi-people-fill"></i>
             <span>Students</span>
         </a>
-        <a class="nav-link" href="#submissions">
+        <a class="nav-link <?= $currentPage === 'lecturer_submissions.php' ? 'active' : '' ?>" href="lecturer_submissions.php">
             <i class="bi bi-file-earmark-check-fill"></i>
             <span>Submissions</span>
         </a>
-        <a class="nav-link" href="#reports">
+        <a class="nav-link" href="#">
             <i class="bi bi-bar-chart-line-fill"></i>
             <span>Reports</span>
         </a>
-        <a class="nav-link" href="#settings">
+        <a class="nav-link" href="#">
             <i class="bi bi-gear-fill"></i>
             <span>Settings</span>
         </a>

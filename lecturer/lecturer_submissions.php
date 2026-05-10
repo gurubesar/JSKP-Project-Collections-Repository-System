@@ -97,17 +97,16 @@ $statusLabels = ['pending' => 'Pending', 'approved' => 'Approved', 'rejected' =>
 try {
     $stmt = $db->prepare(
         "SELECT p.project_id, p.title_encrypted, p.description_encrypted, p.study_year, p.created_at,
-                latest.submission_id, latest.submitted_at, latest.status
+                s.submission_id, s.submitted_at, s.status
          FROM projects p
-         LEFT JOIN LATERAL (
-             SELECT submission_id, submitted_at, status
-             FROM submissions
-             WHERE submissions.project_id = p.project_id
+         LEFT JOIN submissions s ON s.submission_id = (
+             SELECT submission_id FROM submissions
+             WHERE project_id = p.project_id
              ORDER BY submitted_at DESC
              LIMIT 1
-         ) latest ON TRUE
+         )
          WHERE p.lecturer_id = ?
-         ORDER BY COALESCE(latest.submitted_at, p.created_at) DESC"
+         ORDER BY COALESCE(s.submitted_at, p.created_at) DESC"
     );
     $stmt->execute([$lecturerId]);
     $projectRows = $stmt->fetchAll(PDO::FETCH_ASSOC);

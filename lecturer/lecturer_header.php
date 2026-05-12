@@ -10,45 +10,53 @@ if (!isset($_SESSION['lecturer_logged_in']) || $_SESSION['lecturer_logged_in'] !
 
 require_once __DIR__ . '/../database/db.php';
 
-function e($value): string
-{
-    return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
-}
-
-function decryptValue(?string $value): string
-{
-    if ($value === null || $value === '') {
-        return '';
-    }
-
-    try {
-        return decryptData($value);
-    } catch (Throwable $error) {
-        return '';
+if (!function_exists('e')) {
+    function e($value): string
+    {
+        return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
     }
 }
 
-function lecturerOwnsProject(PDO $db, int $lecturerId, int $projectId): bool
-{
-    $stmt = $db->prepare('SELECT COUNT(*) FROM projects WHERE project_id = ? AND lecturer_id = ?');
-    $stmt->execute([$projectId, $lecturerId]);
-    return (int) $stmt->fetchColumn() > 0;
+if (!function_exists('decryptValue')) {
+    function decryptValue(?string $value): string
+    {
+        if ($value === null || $value === '') {
+            return '';
+        }
+
+        try {
+            return decryptData($value);
+        } catch (Throwable $error) {
+            return '';
+        }
+    }
 }
 
-function updateSubmissionStatus(PDO $db, int $projectId, string $status): void
-{
-    $stmt = $db->prepare('SELECT submission_id FROM submissions WHERE project_id = ? ORDER BY submitted_at DESC LIMIT 1');
-    $stmt->execute([$projectId]);
-    $submissionId = $stmt->fetchColumn();
-
-    if ($submissionId) {
-        $update = $db->prepare('UPDATE submissions SET status = ? WHERE submission_id = ?');
-        $update->execute([$status, $submissionId]);
-        return;
+if (!function_exists('lecturerOwnsProject')) {
+    function lecturerOwnsProject(PDO $db, int $lecturerId, int $projectId): bool
+    {
+        $stmt = $db->prepare('SELECT COUNT(*) FROM projects WHERE project_id = ? AND lecturer_id = ?');
+        $stmt->execute([$projectId, $lecturerId]);
+        return (int) $stmt->fetchColumn() > 0;
     }
+}
 
-    $insert = $db->prepare('INSERT INTO submissions (project_id, status) VALUES (?, ?)');
-    $insert->execute([$projectId, $status]);
+if (!function_exists('updateSubmissionStatus')) {
+    function updateSubmissionStatus(PDO $db, int $projectId, string $status): void
+    {
+        $stmt = $db->prepare('SELECT submission_id FROM submissions WHERE project_id = ? ORDER BY submitted_at DESC LIMIT 1');
+        $stmt->execute([$projectId]);
+        $submissionId = $stmt->fetchColumn();
+
+        if ($submissionId) {
+            $update = $db->prepare('UPDATE submissions SET status = ? WHERE submission_id = ?');
+            $update->execute([$status, $submissionId]);
+            return;
+        }
+
+        $insert = $db->prepare('INSERT INTO submissions (project_id, status) VALUES (?, ?)');
+        $insert->execute([$projectId, $status]);
+    }
 }
 
 $lecturerId = (int) ($_SESSION['user_id'] ?? 0);
@@ -57,6 +65,8 @@ $lecturerInitials = implode('', array_slice(array_map(
     static fn($part) => strtoupper(substr($part, 0, 1)),
     array_filter(preg_split('/\s+/', $lecturerName) ?: [])
 ), 0, 2)) ?: 'L';
+
+if (empty($lecturerHeaderSkipDashboardData)) {
 $flashMessage = '';
 $flashType = 'success';
 
@@ -167,6 +177,7 @@ foreach ($projects as $project) {
     }
 }
 $assignedStudents = count($studentMap);
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -479,6 +490,314 @@ $assignedStudents = count($studentMap);
             font-size: 0.82rem;
             text-transform: uppercase;
             background: #f6f8fb;
+        }
+
+        .student-card,
+        .grade-card {
+            background: var(--lecturer-card);
+            border: 1px solid var(--lecturer-border);
+            border-radius: 16px;
+            padding: 22px;
+            box-shadow: var(--lecturer-shadow);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .student-card:hover,
+        .grade-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 24px 48px rgba(28, 39, 60, 0.12);
+        }
+
+        .student-name {
+            color: var(--lecturer-maroon);
+            font-size: 1.05rem;
+            font-weight: 800;
+            margin-bottom: 4px;
+        }
+
+        .student-meta {
+            color: var(--lecturer-muted);
+            font-size: 0.875rem;
+            line-height: 1.7;
+        }
+
+        .progress-table th {
+            color: #5f6878;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            background: #f6f8fb;
+        }
+
+        .files-section {
+            margin-top: 14px;
+            padding: 14px;
+            background: #f8f9fc;
+            border: 1px solid var(--lecturer-border);
+            border-radius: 12px;
+        }
+
+        .files-section h6 {
+            color: var(--lecturer-maroon);
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 10px;
+            margin-bottom: 6px;
+            background: #fff;
+            border: 1px solid var(--lecturer-border);
+            border-radius: 9px;
+        }
+
+        .file-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .file-name {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            color: var(--lecturer-text);
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .file-meta {
+            color: var(--lecturer-muted);
+            font-size: 0.78rem;
+        }
+
+        .btn-download {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            min-height: 32px;
+            padding: 4px 12px;
+            border: 0;
+            border-radius: 8px;
+            background: var(--lecturer-maroon);
+            color: #fff;
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .btn-download:hover {
+            background: var(--lecturer-maroon-dark);
+            color: #fff;
+        }
+
+        .grade-card {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .grade-badge {
+            width: 54px;
+            height: 54px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 1.4rem;
+            font-weight: 900;
+        }
+
+        .grade-A\+,
+        .grade-A {
+            background: #e7f6ed;
+            color: #1f7a45;
+        }
+
+        .grade-A- {
+            background: #eaf7f0;
+            color: #2e8a50;
+        }
+
+        .grade-B\+,
+        .grade-B {
+            background: #eef4ff;
+            color: #2563eb;
+        }
+
+        .grade-B- {
+            background: #f0f5ff;
+            color: #3b75f0;
+        }
+
+        .grade-C\+,
+        .grade-C,
+        .grade-C- {
+            background: #fff8e1;
+            color: #b45309;
+        }
+
+        .grade-D {
+            background: #fff0e0;
+            color: #c2540a;
+        }
+
+        .grade-F {
+            background: #fdecec;
+            color: #a43131;
+        }
+
+        .grade-ungraded {
+            background: #f1f3f7;
+            color: #6e7686;
+            font-size: 1rem;
+        }
+
+        .mark-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 6px;
+        }
+
+        .mark-label {
+            width: 120px;
+            flex-shrink: 0;
+            color: var(--lecturer-muted);
+            font-size: 0.78rem;
+        }
+
+        .mark-bar-wrap {
+            flex: 1;
+            height: 8px;
+            overflow: hidden;
+            background: #f1f3f7;
+            border-radius: 99px;
+        }
+
+        .mark-bar {
+            height: 100%;
+            background: var(--lecturer-maroon);
+            border-radius: 99px;
+            transition: width 0.4s ease;
+        }
+
+        .mark-score {
+            min-width: 38px;
+            color: var(--lecturer-text);
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-align: right;
+        }
+
+        .btn-assign,
+        .btn-view {
+            min-height: 38px;
+            border-radius: 10px;
+            font-size: 0.8rem;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .btn-assign {
+            border: 1px solid var(--lecturer-gold);
+            background: var(--lecturer-gold);
+            color: #271700;
+        }
+
+        .btn-assign:hover {
+            border-color: #c49218;
+            background: #c49218;
+            color: #fff;
+        }
+
+        .btn-view {
+            border: 1px solid var(--lecturer-border);
+            background: #fff;
+            color: var(--lecturer-text);
+        }
+
+        .btn-view:hover {
+            border-color: var(--lecturer-maroon);
+            color: var(--lecturer-maroon);
+        }
+
+        .modal-content {
+            border: 0;
+            border-radius: 18px;
+            box-shadow: 0 28px 60px rgba(0, 0, 0, 0.18);
+        }
+
+        .modal-header {
+            padding: 20px 24px 16px;
+            border-bottom: 1px solid var(--lecturer-border);
+        }
+
+        .modal-body {
+            padding: 20px 24px;
+        }
+
+        .modal-footer {
+            padding: 14px 24px;
+            border-top: 1px solid var(--lecturer-border);
+        }
+
+        .mark-input-group label {
+            margin-bottom: 6px;
+            color: var(--lecturer-text);
+            font-size: 0.85rem;
+            font-weight: 700;
+        }
+
+        .mark-input-group input {
+            padding: 10px 12px;
+            border: 1.5px solid var(--lecturer-border);
+            border-radius: 10px;
+            font-size: 0.95rem;
+        }
+
+        .mark-input-group input:focus {
+            border-color: var(--lecturer-maroon);
+            box-shadow: 0 0 0 3px rgba(128, 0, 32, 0.1);
+            outline: none;
+        }
+
+        .mark-cap {
+            margin-top: 3px;
+            color: var(--lecturer-muted);
+            font-size: 0.75rem;
+        }
+
+        .total-preview {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 6px;
+            padding: 14px 18px;
+            background: #f8f9fc;
+            border: 1px solid var(--lecturer-border);
+            border-radius: 12px;
+        }
+
+        .total-preview .tp-label {
+            color: var(--lecturer-muted);
+            font-size: 0.85rem;
+        }
+
+        .total-preview .tp-value {
+            color: var(--lecturer-maroon);
+            font-size: 1.5rem;
+            font-weight: 900;
+        }
+
+        .total-preview .tp-grade {
+            padding: 4px 12px;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 800;
         }
 
         @media (max-width: 991.98px) {

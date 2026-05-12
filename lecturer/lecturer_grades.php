@@ -4,11 +4,11 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 if (!isset($_SESSION['lecturer_logged_in']) || $_SESSION['lecturer_logged_in'] !== true) {
-    header('Location: login.php');
+    header('Location: ../public/login.php');
     exit;
 }
 
-require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/../database/db.php';
 
 function e($value): string
 {
@@ -196,158 +196,10 @@ function gradeLabel(int $total): string {
     };
 }
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Final Grades – UTM Lecturer Portal</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="utm-theme.css">
-    <style>
-        :root {
-            --lecturer-maroon: #800020; --lecturer-maroon-dark: #540014;
-            --lecturer-gold: #dca51c;   --lecturer-bg: #f4f7fb;
-            --lecturer-card: #ffffff;   --lecturer-border: #e5e9f0;
-            --lecturer-text: #182033;   --lecturer-muted: #6e7686;
-            --lecturer-shadow: 0 16px 38px rgba(28,39,60,.09);
-        }
-        body { margin:0; min-height:100vh; background:var(--lecturer-bg); color:var(--lecturer-text); font-family:Inter,system-ui,sans-serif; }
-        .lecturer-shell { min-height:100vh; padding-left:270px; }
-
-        /* ── Sidebar ── */
-        .sidebar { position:fixed; inset:0 auto 0 0; width:270px; overflow-y:auto; background:linear-gradient(180deg,#fffcf4 0%,#f8f0df 100%); border-right:1px solid rgba(128,0,32,.12); box-shadow:12px 0 32px rgba(84,0,20,.1); display:flex; flex-direction:column; }
-        .brand { min-height:105px; padding:24px 20px; display:flex; align-items:center; gap:12px; border-bottom:1px solid rgba(128,0,32,.12); }
-        .brand-mark { width:64px; height:64px; object-fit:contain; }
-        .brand-title { margin:0; color:var(--lecturer-maroon); font-weight:800; font-size:1.25rem; }
-        .brand-subtitle { color:#7d5b20; font-size:.76rem; line-height:1.35; }
-        .sidebar-nav { display:grid; gap:7px; padding:18px 14px; flex:1; }
-        .nav-link { display:flex; align-items:center; gap:12px; min-height:46px; padding:11px 14px; border-radius:12px; color:#6f273a; font-weight:700; text-decoration:none; }
-        .nav-link:hover, .nav-link.active { background:var(--lecturer-gold); color:#271700; }
-        .sidebar-footer { padding:16px 14px 22px; border-top:1px solid rgba(128,0,32,.12); }
-
-        /* ── Top bar ── */
-        .top-navbar { display:flex; align-items:center; justify-content:space-between; gap:18px; margin-bottom:28px; padding:18px 24px; position:sticky; top:0; z-index:20; background:rgba(255,255,255,.93); border-bottom:1px solid var(--lecturer-border); backdrop-filter:blur(12px); }
-        .icon-button { width:42px; aspect-ratio:1; border-radius:12px; border:1px solid var(--lecturer-border); background:#fff; display:inline-grid; place-items:center; color:var(--lecturer-text); }
-        .profile-chip { display:flex; align-items:center; gap:10px; padding:6px 12px 6px 6px; border-radius:999px; border:1px solid var(--lecturer-border); background:#fff; }
-        .avatar { width:38px; aspect-ratio:1; border-radius:50%; display:grid; place-items:center; background:#f2e2b8; color:var(--lecturer-maroon); font-weight:800; }
-
-        /* ── Content ── */
-        .content { padding:30px; }
-        .stat-card { background:var(--lecturer-card); border:1px solid var(--lecturer-border); border-radius:18px; box-shadow:var(--lecturer-shadow); min-height:110px; padding:20px; }
-        .stat-icon { width:46px; aspect-ratio:1; border-radius:14px; display:grid; place-items:center; background:rgba(128,0,32,.1); color:var(--lecturer-maroon); font-size:1.35rem; }
-        .stat-value { font-size:2rem; line-height:1; font-weight:800; }
-        .toolbar { background:#fff; border:1px solid var(--lecturer-border); border-radius:18px; padding:14px; box-shadow:var(--lecturer-shadow); }
-        .search-control { min-height:44px; border-radius:12px; border:1px solid var(--lecturer-border); }
-
-        /* ── Grade cards ── */
-        .grade-card { background:var(--lecturer-card); border:1px solid var(--lecturer-border); border-radius:16px; padding:22px; box-shadow:var(--lecturer-shadow); display:flex; flex-direction:column; transition:transform .2s, box-shadow .2s; }
-        .grade-card:hover { transform:translateY(-2px); box-shadow:0 24px 48px rgba(28,39,60,.12); }
-        .project-title { color:var(--lecturer-maroon); font-size:1rem; font-weight:800; line-height:1.35; }
-
-        .status-badge { display:inline-flex; align-items:center; min-height:26px; padding:3px 10px; border-radius:999px; font-size:.76rem; font-weight:800; text-transform:uppercase; }
-        .status-pending  { background:#fff5d8; color:#856200; }
-        .status-approved { background:#e7f6ed; color:#1f7a45; }
-        .status-rejected { background:#fdecec; color:#a43131; }
-
-        /* Grade badge */
-        .grade-badge { width:54px; height:54px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:1.4rem; font-weight:900; flex-shrink:0; }
-        .grade-A\+ , .grade-A  { background:#e7f6ed; color:#1f7a45; }
-        .grade-A-  { background:#eaf7f0; color:#2e8a50; }
-        .grade-B\+ , .grade-B  { background:#eef4ff; color:#2563eb; }
-        .grade-B-  { background:#f0f5ff; color:#3b75f0; }
-        .grade-C\+ , .grade-C , .grade-C- { background:#fff8e1; color:#b45309; }
-        .grade-D   { background:#fff0e0; color:#c2540a; }
-        .grade-F   { background:#fdecec; color:#a43131; }
-        .grade-ungraded { background:#f1f3f7; color:#6e7686; font-size:1rem; }
-
-        /* Mark breakdown bar */
-        .mark-row { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
-        .mark-label { font-size:.78rem; color:var(--lecturer-muted); width:120px; flex-shrink:0; }
-        .mark-bar-wrap { flex:1; background:#f1f3f7; border-radius:99px; height:8px; overflow:hidden; }
-        .mark-bar { height:100%; border-radius:99px; background:var(--lecturer-maroon); transition:width .4s ease; }
-        .mark-score { font-size:.78rem; font-weight:700; color:var(--lecturer-text); min-width:38px; text-align:right; }
-
-        /* Action row */
-        .action-row { display:flex; gap:8px; flex-wrap:wrap; margin-top:auto; padding-top:16px; }
-        .btn-assign  { min-height:38px; border-radius:10px; font-size:.8rem; font-weight:800; text-transform:uppercase; background:var(--lecturer-gold); color:#271700; border:1px solid var(--lecturer-gold); }
-        .btn-assign:hover { background:#c49218; border-color:#c49218; color:#fff; }
-        .btn-view    { min-height:38px; border-radius:10px; font-size:.8rem; font-weight:800; text-transform:uppercase; border:1px solid var(--lecturer-border); background:#fff; color:var(--lecturer-text); }
-        .btn-view:hover { border-color:var(--lecturer-maroon); color:var(--lecturer-maroon); }
-
-        .empty-state { display:grid; place-items:center; min-height:200px; color:var(--lecturer-muted); text-align:center; border:1px dashed var(--lecturer-border); border-radius:16px; background:#fbfcfe; }
-
-        /* Modal tweaks */
-        .modal-content { border-radius:18px; border:none; box-shadow:0 28px 60px rgba(0,0,0,.18); }
-        .modal-header  { border-bottom:1px solid var(--lecturer-border); padding:20px 24px 16px; }
-        .modal-body    { padding:20px 24px; }
-        .modal-footer  { border-top:1px solid var(--lecturer-border); padding:14px 24px; }
-        .mark-input-group label { font-size:.85rem; font-weight:700; color:var(--lecturer-text); margin-bottom:6px; }
-        .mark-input-group input { border-radius:10px; border:1.5px solid var(--lecturer-border); padding:10px 12px; font-size:.95rem; }
-        .mark-input-group input:focus { border-color:var(--lecturer-maroon); box-shadow:0 0 0 3px rgba(128,0,32,.1); outline:none; }
-        .mark-cap { font-size:.75rem; color:var(--lecturer-muted); margin-top:3px; }
-        .total-preview { background:#f8f9fc; border:1px solid var(--lecturer-border); border-radius:12px; padding:14px 18px; margin-top:6px; display:flex; align-items:center; justify-content:space-between; }
-        .total-preview .tp-label { font-size:.85rem; color:var(--lecturer-muted); }
-        .total-preview .tp-value { font-size:1.5rem; font-weight:900; color:var(--lecturer-maroon); }
-        .total-preview .tp-grade { font-size:1.1rem; font-weight:800; padding:4px 12px; border-radius:8px; }
-
-        @media (max-width:991.98px) {
-            .lecturer-shell { padding-left:0; }
-            .sidebar { position:static; width:100%; }
-            .content { padding:20px 14px; }
-        }
-    </style>
-</head>
-<body>
-<div class="lecturer-shell">
-
-    <!-- ── Sidebar ── -->
-    <aside class="sidebar">
-        <div class="brand">
-            <img class="brand-mark" src="assets/utm-logo.png" alt="UTM logo"
-                 onerror="this.outerHTML='<div style=\'width:64px;height:64px;border-radius:50%;background:rgba(128,0,32,.15);display:flex;align-items:center;justify-content:center;color:#800020;font-weight:800;font-size:18px;\'>UTM</div>'">
-            <div>
-                <p class="brand-title">UTM</p>
-                <div class="brand-subtitle">Universiti Teknologi Malaysia<br>Academic Review</div>
-            </div>
-        </div>
-        <nav class="sidebar-nav" aria-label="Lecturer navigation">
-            <a class="nav-link" href="Lecturer_dashboard.php"><i class="bi bi-grid-1x2-fill"></i><span>Dashboard</span></a>
-            <a class="nav-link" href="lecturer_submissions.php"><i class="bi bi-file-earmark-check-fill"></i><span>Submissions</span></a>
-            <a class="nav-link" href="lecturer_students.php"><i class="bi bi-people-fill"></i><span>Students</span></a>
-            <a class="nav-link active" href="lecturer_grades.php"><i class="bi bi-star-fill"></i><span>Grades</span></a>
-        </nav>
-        <div class="sidebar-footer">
-            <div class="d-flex align-items-center gap-2 mb-2">
-                <div class="avatar"><?= e($lecturerInitials) ?></div>
-                <div>
-                    <div class="fw-bold"><?= e($lecturerName) ?></div>
-                    <small class="text-muted">Lecturer</small>
-                </div>
-            </div>
-            <a class="text-muted small" href="logout.php">Logout</a>
-        </div>
-    </aside>
-
-    <!-- ── Main ── -->
-    <main class="lecturer-main" style="min-width:0;">
-        <header class="top-navbar">
-            <div><span class="text-muted">Welcome,</span><strong> <?= e($lecturerName) ?></strong></div>
-            <div class="d-flex align-items-center gap-2 ms-auto">
-                <div class="profile-chip">
-                    <div class="avatar"><?= e($lecturerInitials) ?></div>
-                    <div class="d-none d-sm-block pe-1">
-                        <div class="fw-bold lh-sm"><?= e($lecturerName) ?></div>
-                        <small class="text-muted">UTM Lecturer</small>
-                    </div>
-                </div>
-                <a class="icon-button text-decoration-none" href="logout.php" aria-label="Sign out">
-                    <i class="bi bi-box-arrow-right"></i>
-                </a>
-            </div>
-        </header>
-
+<?php
+$lecturerHeaderSkipDashboardData = true;
+require_once __DIR__ . '/lecturer_header.php';
+?>
         <div class="content">
 
             <!-- Flash -->

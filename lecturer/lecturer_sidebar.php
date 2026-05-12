@@ -17,10 +17,6 @@
             <i class="bi bi-folder-fill"></i>
             <span>Projects</span>
         </a>
-        <a class="nav-link" href="#">
-            <i class="bi bi-mortarboard-fill"></i>
-            <span>Faculty</span>
-        </a>
         <a class="nav-link <?= $currentPage === 'lecturer_students.php' ? 'active' : '' ?>" href="lecturer_students.php">
             <i class="bi bi-people-fill"></i>
             <span>Students</span>
@@ -29,13 +25,9 @@
             <i class="bi bi-file-earmark-check-fill"></i>
             <span>Submissions</span>
         </a>
-        <a class="nav-link" href="#">
-            <i class="bi bi-bar-chart-line-fill"></i>
-            <span>Reports</span>
-        </a>
-        <a class="nav-link" href="#">
-            <i class="bi bi-gear-fill"></i>
-            <span>Settings</span>
+        <a class="nav-link <?= $currentPage === 'lecturer_grades.php' ? 'active' : '' ?>" href="lecturer_grades.php">
+            <i class="bi bi-star-fill"></i>
+            <span>Grades</span>
         </a>
     </nav>
 

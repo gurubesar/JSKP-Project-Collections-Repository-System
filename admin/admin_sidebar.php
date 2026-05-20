@@ -24,7 +24,7 @@
             <i class="bi bi-shield-lock-fill"></i>
             <span>Admin</span>
         </a>
-        <a class="sidebar-link" href="#">
+        <a class="sidebar-link<?= basename($_SERVER['PHP_SELF']) === 'admin_projects.php' ? ' active' : '' ?>" href="admin_projects.php">
             <i class="bi bi-folder2-open"></i>
             <span>Projects</span>
         </a>

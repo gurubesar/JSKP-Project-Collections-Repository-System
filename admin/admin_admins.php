@@ -10,10 +10,9 @@ if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== tru
 
 require_once __DIR__ . '/../database/db.php';
 require_once __DIR__ . '/../database/encryption.php';
-require __DIR__ . '/admin_header.php';
 
 // Handle form submissions
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     if (isset($_POST['admin_action'])) {
         $action = $_POST['admin_action'];
 
@@ -152,6 +151,7 @@ foreach ($admins as &$admin) {
     $admin['name'] = decryptData($admin['name_encrypted']);
     $admin['email'] = decryptData($admin['email_encrypted']);
 }
+unset($admin);
 
 $adminName = $_SESSION['admin_name'] ?? 'Admin';
 $adminInitial = strtoupper(substr($adminName, 0, 1));
@@ -159,6 +159,8 @@ $adminFlash = $_SESSION['admin_flash'] ?? '';
 $adminFlashType = $_SESSION['admin_flash_type'] ?? 'info';
 $currentUserId = (int)($_SESSION['user_id'] ?? 0);
 unset($_SESSION['admin_flash'], $_SESSION['admin_flash_type']);
+
+require __DIR__ . '/admin_header.php';
 ?>
 
 <div class="admin-shell">

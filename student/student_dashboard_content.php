@@ -57,7 +57,7 @@
                             </div>
                             <p class="project-description"><?= e($description ?: 'Project description will appear here once your group submits details.') ?></p>
                             <div class="project-actions">
-                                <a href="#" class="btn btn-primary">View Details</a>
+                                <a href="student_project.php?project_id=<?= e($project['project_id']) ?>" class="btn btn-primary">View Details</a>
                                 <a href="#" class="btn btn-secondary">Submission History</a>
                             </div>
                             <div>
@@ -79,5 +79,6 @@
             </section>
         </main>
     </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

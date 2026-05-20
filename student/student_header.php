@@ -35,20 +35,16 @@ try {
     $stmt = $db->prepare(
         "SELECT p.project_id, p.title_encrypted, p.description_encrypted, p.study_year, p.created_at,
                 u.name_encrypted AS lecturer_name,
-                latest.status AS submission_status,
-                latest.submitted_at
+                (SELECT s.status FROM submissions s WHERE s.project_id = p.project_id ORDER BY s.submitted_at DESC LIMIT 1) AS submission_status,
+                (SELECT s.submitted_at FROM submissions s WHERE s.project_id = p.project_id ORDER BY s.submitted_at DESC LIMIT 1) AS submitted_at
          FROM project_members pm
          JOIN projects p ON pm.project_id = p.project_id
          LEFT JOIN users u ON p.lecturer_id = u.user_id
-         LEFT JOIN LATERAL (
-             SELECT status, submitted_at
-             FROM submissions
-             WHERE submissions.project_id = p.project_id
-             ORDER BY submitted_at DESC
-             LIMIT 1
-         ) latest ON TRUE
          WHERE pm.user_id = ?
-         ORDER BY COALESCE(latest.submitted_at, p.created_at) DESC"
+         ORDER BY COALESCE(
+             (SELECT s.submitted_at FROM submissions s WHERE s.project_id = p.project_id ORDER BY s.submitted_at DESC LIMIT 1),
+             p.created_at
+         ) DESC"
     );
     $stmt->execute([$studentId]);
     $projects = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -201,11 +197,22 @@ $statusProgress = static function (string $status): int {
             min-width: 0;
         }
 
-        .sidebar-link:hover,
-        .sidebar-link.active {
-            background: var(--student-gold);
+        .sidebar-link:hover {
+            background: #f0d982;
             color: #2b1800;
             transform: translateX(2px);
+        }
+
+        .sidebar-link.active {
+            background: var(--student-sidebar);
+            color: #ffffff;
+            transform: none;
+        }
+
+        .sidebar-link.active:hover {
+            background: var(--student-sidebar);
+            color: #ffffff;
+            transform: none;
         }
 
         .main-content {

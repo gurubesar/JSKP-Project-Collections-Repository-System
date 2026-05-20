@@ -13,7 +13,7 @@
             <i class="bi bi-grid-1x2-fill"></i>
             <span>Dashboard</span>
         </a>
-        <a class="nav-link" href="Lecturer_dashboard.php#projects">
+        <a class="nav-link <?= $currentPage === 'lecturer_projects.php' ? 'active' : '' ?>" href="lecturer_projects.php">
             <i class="bi bi-folder-fill"></i>
             <span>Projects</span>
         </a>

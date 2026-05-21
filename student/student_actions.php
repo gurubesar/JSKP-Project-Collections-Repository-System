@@ -22,18 +22,103 @@ function set_flash(string $msg, string $type = 'success'): void
     $_SESSION['student_flash_type'] = $type;
 }
 
+function upload_error_message(int $error): string
+{
+    return match ($error) {
+        UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE => 'The selected file is too large to upload.',
+        UPLOAD_ERR_PARTIAL => 'The file was only partially uploaded. Please try again.',
+        UPLOAD_ERR_NO_FILE => 'Please choose a file before uploading.',
+        UPLOAD_ERR_NO_TMP_DIR => 'Upload failed because the server temporary folder is missing.',
+        UPLOAD_ERR_CANT_WRITE => 'Upload failed because the server could not save the file.',
+        UPLOAD_ERR_EXTENSION => 'Upload blocked by a server extension.',
+        default => 'Upload failed. Please try again.',
+    };
+}
+
+function ini_size_to_bytes(string $size): int
+{
+    $size = trim($size);
+    if ($size === '') {
+        return 0;
+    }
+
+    $unit = strtolower($size[strlen($size) - 1]);
+    $value = (float) $size;
+
+    return (int) match ($unit) {
+        'g' => $value * 1024 * 1024 * 1024,
+        'm' => $value * 1024 * 1024,
+        'k' => $value * 1024,
+        default => $value,
+    };
+}
+
+function student_is_project_member(PDO $db, int $studentId, int $projectId): bool
+{
+    $stmt = $db->prepare(
+        "SELECT COUNT(*)
+         FROM project_members
+         WHERE project_id = ? AND user_id = ? AND role = 'student'"
+    );
+    $stmt->execute([$projectId, $studentId]);
+
+    return (int) $stmt->fetchColumn() > 0;
+}
+
 try {
+    if ($action === 'rename_project' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        if ($projectId <= 0) throw new RuntimeException('Invalid project');
+        if (!student_is_project_member($db, $studentId, $projectId)) {
+            throw new RuntimeException('You are not allowed to rename this project.');
+        }
+
+        $newTitle = trim((string) ($_POST['project_title'] ?? ''));
+        if ($newTitle === '') {
+            throw new RuntimeException('Project name cannot be empty.');
+        }
+
+        if (strlen($newTitle) > 160) {
+            throw new RuntimeException('Project name is too long.');
+        }
+
+        $stmt = $db->prepare('UPDATE projects SET title_encrypted = ? WHERE project_id = ?');
+        $stmt->execute([encryptData($newTitle), $projectId]);
+
+        set_flash('Project name updated.');
+        header('Location: ../student/student_project.php?project_id=' . $projectId);
+        exit;
+    }
+
     if ($action === 'upload_file' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($projectId <= 0) throw new RuntimeException('Invalid project');
-        if (!isset($_FILES['project_file'])) throw new RuntimeException('No file uploaded');
+        if (!student_is_project_member($db, $studentId, $projectId)) {
+            throw new RuntimeException('You are not allowed to upload files to this project.');
+        }
+
+        if (!isset($_FILES['project_file'])) {
+            $contentLength = (int) ($_SERVER['CONTENT_LENGTH'] ?? 0);
+            $postMaxSize = ini_size_to_bytes((string) ini_get('post_max_size'));
+            if ($postMaxSize > 0 && $contentLength > $postMaxSize) {
+                throw new RuntimeException('The selected file is too large to upload. Maximum size: ' . ini_get('post_max_size') . '.');
+            }
+
+            throw new RuntimeException('Please choose a file before uploading.');
+        }
 
         $file = $_FILES['project_file'];
-        if ($file['error'] !== UPLOAD_ERR_OK) throw new RuntimeException('Upload failed');
+        if ($file['error'] !== UPLOAD_ERR_OK) {
+            throw new RuntimeException(upload_error_message((int) $file['error']));
+        }
 
         $origName = basename($file['name']);
         $ext = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
-        if ($ext !== 'pdf') {
-            throw new RuntimeException('Please submit only PDF files.');
+        $allowedExtensions = ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'zip'];
+        if (!in_array($ext, $allowedExtensions, true)) {
+            throw new RuntimeException('Allowed formats: PDF, Word, PowerPoint, or ZIP.');
+        }
+
+        if (!is_uploaded_file($file['tmp_name'])) {
+            throw new RuntimeException('Upload failed. Please choose the file again and retry.');
         }
 
         $safeName = time() . '_' . preg_replace('/[^A-Za-z0-9_\-\.]/', '_', $origName);
@@ -60,6 +145,10 @@ try {
 
     if ($action === 'generate_proposal' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($projectId <= 0) throw new RuntimeException('Invalid project');
+        if (!student_is_project_member($db, $studentId, $projectId)) {
+            throw new RuntimeException('You are not allowed to generate a proposal for this project.');
+        }
+
         $title = trim((string) ($_POST['proposal_title'] ?? 'Project Proposal'));
         $projectType = trim((string) ($_POST['proposal_type'] ?? ''));
         $clientName = trim((string) ($_POST['proposal_client'] ?? ''));
@@ -142,6 +231,10 @@ try {
     }
 
     if ($action === 'delete_file' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        if (!student_is_project_member($db, $studentId, $projectId)) {
+            throw new RuntimeException('You are not allowed to delete files from this project.');
+        }
+
         $fileId = (int) ($_POST['file_id'] ?? 0);
         if ($fileId <= 0) throw new RuntimeException('Invalid file id');
 

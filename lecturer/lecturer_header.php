@@ -44,16 +44,6 @@ if (!function_exists('lecturerOwnsProject')) {
 if (!function_exists('updateSubmissionStatus')) {
     function updateSubmissionStatus(PDO $db, int $projectId, string $status): void
     {
-        $stmt = $db->prepare('SELECT submission_id FROM submissions WHERE project_id = ? ORDER BY submitted_at DESC LIMIT 1');
-        $stmt->execute([$projectId]);
-        $submissionId = $stmt->fetchColumn();
-
-        if ($submissionId) {
-            $update = $db->prepare('UPDATE submissions SET status = ? WHERE submission_id = ?');
-            $update->execute([$status, $submissionId]);
-            return;
-        }
-
         $insert = $db->prepare('INSERT INTO submissions (project_id, status) VALUES (?, ?)');
         $insert->execute([$projectId, $status]);
     }

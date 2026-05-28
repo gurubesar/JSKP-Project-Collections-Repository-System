@@ -35,7 +35,7 @@ $studentName = trim((string) ($_SESSION['user_name'] ?? 'Student'));
 $projects = [];
 try {
     $stmt = $db->prepare(
-        "SELECT p.project_id, p.title_encrypted, p.description_encrypted, p.study_year, p.created_at,
+        "SELECT p.project_id, p.title_encrypted, p.description_encrypted, p.category_encrypted, p.study_year, p.created_at,
                 u.name_encrypted AS lecturer_name,
                 (SELECT s.status FROM submissions s WHERE s.project_id = p.project_id ORDER BY s.submitted_at DESC LIMIT 1) AS submission_status,
                 (SELECT s.submitted_at FROM submissions s WHERE s.project_id = p.project_id ORDER BY s.submitted_at DESC LIMIT 1) AS submitted_at
@@ -393,7 +393,7 @@ $statusProgress = static function (string $status): int {
 
         .project-meta {
             display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
             gap: 14px;
             color: var(--student-muted);
         }

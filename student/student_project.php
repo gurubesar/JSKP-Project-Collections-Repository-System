@@ -18,8 +18,22 @@ if ($projectId <= 0) {
     exit;
 }
 
+function student_project_decrypt(?string $value): string
+{
+    if ($value === null || $value === '') {
+        return '';
+    }
+
+    try {
+        return decryptData($value);
+    } catch (Throwable $error) {
+        return '';
+    }
+}
+
 $title = 'Untitled Project';
 $description = '';
+$category = '';
 $supervisor = '';
 $members = [];
 $files = [];
@@ -33,7 +47,7 @@ $statusClasses = ['pending' => 'status-pending', 'approved' => 'status-approved'
 
 try {
     $stmt = $db->prepare(
-        "SELECT p.project_id, p.title_encrypted, p.description_encrypted, p.study_year, p.created_at,
+        "SELECT p.project_id, p.title_encrypted, p.description_encrypted, p.category_encrypted, p.study_year, p.created_at,
                 p.lecturer_id, u.name_encrypted AS lecturer_name,
                 latest.status AS latest_status, latest.submitted_at AS latest_submitted_at
          FROM projects p
@@ -47,7 +61,6 @@ try {
          INNER JOIN project_members my_pm
              ON my_pm.project_id = p.project_id
             AND my_pm.user_id = ?
-            AND my_pm.role = 'student'
          WHERE p.project_id = ?"
     );
     $stmt->execute([$studentId, $projectId]);
@@ -56,9 +69,10 @@ try {
         throw new RuntimeException('Project not found');
     }
 
-    $title = decryptData($row['title_encrypted'] ?? '') ?: 'Untitled Project';
-    $description = decryptData($row['description_encrypted'] ?? '');
-    $supervisor = decryptData($row['lecturer_name'] ?? '');
+    $title = student_project_decrypt($row['title_encrypted'] ?? '') ?: 'Untitled Project';
+    $description = student_project_decrypt($row['description_encrypted'] ?? '');
+    $category = student_project_decrypt($row['category_encrypted'] ?? '');
+    $supervisor = student_project_decrypt($row['lecturer_name'] ?? '');
     $currentStatus = $row['latest_status'] ?: 'pending';
     $latestSubmittedAt = $row['latest_submitted_at'] ?? null;
 
@@ -71,7 +85,7 @@ try {
     );
     $memberStmt->execute([$projectId]);
     foreach ($memberStmt->fetchAll(PDO::FETCH_ASSOC) as $memberRow) {
-        $memberName = decryptData($memberRow['name_encrypted'] ?? '') ?: 'Unnamed User';
+        $memberName = student_project_decrypt($memberRow['name_encrypted'] ?? '') ?: 'Unnamed User';
         $members[] = [
             'id' => (int) $memberRow['user_id'],
             'name' => $memberName,
@@ -107,7 +121,7 @@ try {
     );
     $commentStmt->execute([$projectId]);
     foreach ($commentStmt->fetchAll(PDO::FETCH_ASSOC) as $commentRow) {
-        $comment = decryptData($commentRow['content_encrypted'] ?? '');
+        $comment = student_project_decrypt($commentRow['content_encrypted'] ?? '');
         if ($comment === '' || str_starts_with($comment, '__marks__') || ($commentRow['author_role'] ?? '') !== 'lecturer') {
             continue;
         }
@@ -115,7 +129,7 @@ try {
         $feedbackLog[] = [
             'comment' => $comment,
             'created_at' => $commentRow['created_at'] ?? '',
-            'author' => decryptData($commentRow['author_name'] ?? '') ?: 'Lecturer',
+            'author' => student_project_decrypt($commentRow['author_name'] ?? '') ?: 'Lecturer',
         ];
     }
 } catch (Throwable $e) {
@@ -149,28 +163,44 @@ require_once __DIR__ . '/student_header.php';
                     </span>
                 </div>
                 <p class="text-muted mb-0">Project Code: <?= htmlspecialchars($projectCode) ?></p>
+                <p class="text-muted mb-0">Category: <?= htmlspecialchars($category ?: 'Not set') ?></p>
                 <?php if ($latestSubmittedAt): ?>
                     <p class="text-muted mb-0">Latest submission: <?= htmlspecialchars(date('d/m/Y H:i', strtotime((string) $latestSubmittedAt))) ?></p>
                 <?php endif; ?>
             </div>
             <div class="d-flex gap-2">
-                <button type="button" class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#renameBox">Rename Project</button>
+                <button type="button" class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#detailsBox">Edit Details</button>
                 <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#generateProposalModal">Generate Proposal</button>
                 <button type="button" class="btn btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#uploadBox">Upload File</button>
             </div>
         </div>
 
-        <div id="renameBox" class="collapse mb-4">
-            <form action="student_actions.php?action=rename_project&project_id=<?= $projectId ?>" method="post" class="p-3 rounded border bg-white">
-                <label class="form-label" for="projectTitle">Project name</label>
-                <div class="d-flex gap-2 flex-wrap">
-                    <input id="projectTitle" type="text" name="project_title" class="form-control" value="<?= htmlspecialchars($title) ?>" maxlength="160" required>
-                    <button class="btn btn-primary" type="submit">Save Name</button>
+        <div id="detailsBox" class="collapse mb-4">
+            <form action="student_actions.php?action=save_project_details&project_id=<?= $projectId ?>" method="post" class="p-3 rounded border bg-white">
+                <div class="row g-3">
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="projectTitle">Project title</label>
+                        <input id="projectTitle" type="text" name="project_title" class="form-control" value="<?= htmlspecialchars($title) ?>" maxlength="160" required>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="projectCategory">Category</label>
+                        <input id="projectCategory" type="text" name="project_category" class="form-control" value="<?= htmlspecialchars($category) ?>" maxlength="80" placeholder="e.g. Web Application">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="projectDescription">Description</label>
+                        <textarea id="projectDescription" name="project_description" class="form-control" rows="4" maxlength="4000"><?= htmlspecialchars($description) ?></textarea>
+                    </div>
+                    <div class="col-12">
+                        <button class="btn btn-primary" type="submit">Save Details</button>
+                    </div>
                 </div>
             </form>
         </div>
 
-        <p><?= nl2br(htmlspecialchars($description)) ?></p>
+        <div class="p-3 rounded border bg-white mb-4">
+            <div class="text-muted small mb-1">Project Description</div>
+            <div><?= $description !== '' ? nl2br(htmlspecialchars($description)) : '<span class="text-muted">No project description has been added yet.</span>' ?></div>
+        </div>
 
         <div class="row g-3 mb-4">
             <div class="col-12 col-lg-4">
@@ -227,7 +257,7 @@ require_once __DIR__ . '/student_header.php';
                     <div class="list-group-item d-flex justify-content-between align-items-center">
                         <div>
                             <strong><?= htmlspecialchars($fileName ?: 'File') ?></strong>
-                            <div class="small text-muted">Uploaded: <?= htmlspecialchars($file['uploaded_at'] ?? '') ?> by <?= htmlspecialchars(decryptData($file['uploader_name'] ?? '') ?: '') ?></div>
+                            <div class="small text-muted">Uploaded: <?= htmlspecialchars($file['uploaded_at'] ?? '') ?> by <?= htmlspecialchars(student_project_decrypt($file['uploader_name'] ?? '') ?: '') ?></div>
                         </div>
                         <div>
                             <?php if ($filePath): ?>

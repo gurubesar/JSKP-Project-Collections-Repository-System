@@ -57,8 +57,9 @@ function student_is_project_member(PDO $db, int $studentId, int $projectId): boo
 {
     $stmt = $db->prepare(
         "SELECT COUNT(*)
-         FROM project_members
-         WHERE project_id = ? AND user_id = ? AND role = 'student'"
+         FROM project_members pm
+         INNER JOIN users u ON u.user_id = pm.user_id
+         WHERE pm.project_id = ? AND pm.user_id = ? AND u.role = 'student'"
     );
     $stmt->execute([$projectId, $studentId]);
 
@@ -69,7 +70,7 @@ try {
     if ($action === 'rename_project' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($projectId <= 0) throw new RuntimeException('Invalid project');
         if (!student_is_project_member($db, $studentId, $projectId)) {
-            throw new RuntimeException('You are not allowed to rename this project.');
+            throw new RuntimeException('You are not allowed to edit this project.');
         }
 
         $newTitle = trim((string) ($_POST['project_title'] ?? ''));
@@ -85,6 +86,49 @@ try {
         $stmt->execute([encryptData($newTitle), $projectId]);
 
         set_flash('Project name updated.');
+        header('Location: ../student/student_project.php?project_id=' . $projectId);
+        exit;
+    }
+
+    if ($action === 'save_project_details' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        if ($projectId <= 0) throw new RuntimeException('Invalid project');
+        if (!student_is_project_member($db, $studentId, $projectId)) {
+            throw new RuntimeException('You are not allowed to edit this project.');
+        }
+
+        $newTitle = trim((string) ($_POST['project_title'] ?? ''));
+        if ($newTitle === '') {
+            throw new RuntimeException('Project name cannot be empty.');
+        }
+
+        if (strlen($newTitle) > 160) {
+            throw new RuntimeException('Project name is too long.');
+        }
+
+        $description = trim((string) ($_POST['project_description'] ?? ''));
+        $category = trim((string) ($_POST['project_category'] ?? ''));
+
+        if (strlen($category) > 80) {
+            throw new RuntimeException('Project category is too long.');
+        }
+
+        if (strlen($description) > 4000) {
+            throw new RuntimeException('Project description is too long.');
+        }
+
+        $stmt = $db->prepare(
+            'UPDATE projects
+             SET title_encrypted = ?, description_encrypted = ?, category_encrypted = ?
+             WHERE project_id = ?'
+        );
+        $stmt->execute([
+            encryptData($newTitle),
+            encryptData($description),
+            $category !== '' ? encryptData($category) : null,
+            $projectId,
+        ]);
+
+        set_flash('Project details saved.');
         header('Location: ../student/student_project.php?project_id=' . $projectId);
         exit;
     }

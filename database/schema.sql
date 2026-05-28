@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS projects (
   project_id INTEGER PRIMARY KEY AUTOINCREMENT,
   title_encrypted TEXT NOT NULL,
   description_encrypted TEXT,
+  category_encrypted TEXT,
   lecturer_id INTEGER REFERENCES users(user_id),
   study_year INTEGER CHECK (study_year BETWEEN 1 AND 5),
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP

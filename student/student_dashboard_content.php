@@ -37,6 +37,7 @@
                         <?php
                             $title = decryptValue($project['title_encrypted'] ?? '');
                             $description = decryptValue($project['description_encrypted'] ?? '');
+                            $category = decryptValue($project['category_encrypted'] ?? '');
                             $supervisor = decryptValue($project['lecturer_name'] ?? '');
                             $projectStatus = $project['submission_status'] ?: 'pending';
                             $statusText = $statusLabel($projectStatus);
@@ -52,6 +53,7 @@
                             </div>
                             <div class="project-meta">
                                 <span><i class="bi bi-hash"></i> <?= e($projectCode) ?></span>
+                                <span><i class="bi bi-tags-fill"></i> <?= e($category ?: 'No category') ?></span>
                                 <span><i class="bi bi-person-fill"></i> <?= e($supervisor ?: 'Supervisor not assigned') ?></span>
                                 <span><i class="bi bi-calendar-event"></i> <?= e($created ?: 'Date unavailable') ?></span>
                             </div>

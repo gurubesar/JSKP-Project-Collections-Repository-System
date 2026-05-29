@@ -154,91 +154,6 @@ require_once __DIR__ . '/student_header.php';
             </div>
         <?php endif; ?>
 
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-        <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-4">
-            <div>
-                <div class="d-flex align-items-center gap-2 flex-wrap mb-2">
-                    <h1 class="h3 fw-bold mb-0"><?= htmlspecialchars($title) ?></h1>
-                    <span class="project-badge <?= htmlspecialchars($statusClasses[$currentStatus] ?? 'status-pending') ?>">
-                        <?= htmlspecialchars($statusLabels[$currentStatus] ?? ucfirst($currentStatus)) ?>
-                    </span>
-                </div>
-                <p class="text-muted mb-0">Project Code: <?= htmlspecialchars($projectCode) ?></p>
-                <p class="text-muted mb-0">Category: <?= htmlspecialchars($category ?: 'Not set') ?></p>
-                <?php if ($latestSubmittedAt): ?>
-                    <p class="text-muted mb-0">Latest submission: <?= htmlspecialchars(date('d/m/Y H:i', strtotime((string) $latestSubmittedAt))) ?></p>
-                <?php endif; ?>
-            </div>
-            <div class="d-flex gap-2">
-                <button type="button" class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#detailsBox">Edit Details</button>
-                <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#generateProposalModal">Generate Proposal</button>
-                <button type="button" class="btn btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#uploadBox">Upload File</button>
-            </div>
-        </div>
-
-        <div id="detailsBox" class="collapse mb-4">
-            <form action="student_actions.php?action=save_project_details&project_id=<?= $projectId ?>" method="post" class="p-3 rounded border bg-white">
-                <div class="row g-3">
-                    <div class="col-12 col-md-6">
-                        <label class="form-label" for="projectTitle">Project title</label>
-                        <input id="projectTitle" type="text" name="project_title" class="form-control" value="<?= htmlspecialchars($title) ?>" maxlength="160" required>
-                    </div>
-                    <div class="col-12 col-md-6">
-                        <label class="form-label" for="projectCategory">Category</label>
-                        <input id="projectCategory" type="text" name="project_category" class="form-control" value="<?= htmlspecialchars($category) ?>" maxlength="80" placeholder="e.g. Web Application">
-                    </div>
-                    <div class="col-12">
-                        <label class="form-label" for="projectDescription">Description</label>
-                        <textarea id="projectDescription" name="project_description" class="form-control" rows="4" maxlength="4000"><?= htmlspecialchars($description) ?></textarea>
-                    </div>
-                    <div class="col-12">
-                        <button class="btn btn-primary" type="submit">Save Details</button>
-                    </div>
-                </div>
-            </form>
-        </div>
-
-        <div class="p-3 rounded border bg-white mb-4">
-            <div class="text-muted small mb-1">Project Description</div>
-            <div><?= $description !== '' ? nl2br(htmlspecialchars($description)) : '<span class="text-muted">No project description has been added yet.</span>' ?></div>
-        </div>
-
-        <div class="row g-3 mb-4">
-            <div class="col-12 col-lg-4">
-                <div class="p-3 rounded border bg-white h-100">
-                    <div class="text-muted small">Supervisor</div>
-                    <div class="fw-bold"><?= htmlspecialchars($supervisor ?: 'No supervisor assigned') ?></div>
-                </div>
-            </div>
-            <div class="col-12 col-lg-8">
-                <div class="p-3 rounded border bg-white h-100">
-                    <div class="text-muted small mb-2">Project Members</div>
-                    <?php if (empty($members)): ?>
-                        <div class="text-muted">No members found.</div>
-                    <?php else: ?>
-                        <div class="d-flex flex-wrap gap-2">
-                            <?php foreach ($members as $member): ?>
-                                <span class="badge rounded-pill text-bg-light border px-3 py-2">
-                                    <?= htmlspecialchars($member['name']) ?>
-                                    <span class="text-muted ms-1"><?= htmlspecialchars(ucfirst($member['role'])) ?></span>
-                                </span>
-                            <?php endforeach; ?>
-                        </div>
-                    <?php endif; ?>
-                </div>
-            </div>
-        </div>
-
-        <div id="uploadBox" class="collapse">
-            <form action="student_actions.php?action=upload_file&project_id=<?= $projectId ?>" method="post" enctype="multipart/form-data">
-                <div class="mb-3">
-                    <label class="form-label">Select project file</label>
-                    <input type="file" name="project_file" class="form-control" accept=".pdf,.doc,.docx,.ppt,.pptx,.zip" required>
-                    <div class="form-text">Allowed formats: PDF, Word, PowerPoint, or ZIP.</div>
-=======
->>>>>>> 243fc3d
         <?php $fileCount = count($files); ?>
         <div class="hero-panel mb-4">
             <div class="row align-items-center gx-4">
@@ -251,10 +166,6 @@ require_once __DIR__ . '/student_header.php';
                         <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#generateProposalModal">Generate Proposal</button>
                         <button class="btn btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#uploadBox">Upload File</button>
                     </div>
-<<<<<<< HEAD
-=======
->>>>>>> e28952c (update UI in student project, lect dashbaord/proj)
->>>>>>> 243fc3d
                 </div>
                 <div class="col-lg-4 mt-4 mt-lg-0">
                     <div class="card border-utm rounded-4 p-4 shadow-sm">
@@ -317,26 +228,6 @@ require_once __DIR__ . '/student_header.php';
                         // ignore
                     }
                 ?>
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-                    <div class="list-group-item d-flex justify-content-between align-items-center">
-                        <div>
-                            <strong><?= htmlspecialchars($fileName ?: 'File') ?></strong>
-                            <div class="small text-muted">Uploaded: <?= htmlspecialchars($file['uploaded_at'] ?? '') ?> by <?= htmlspecialchars(student_project_decrypt($file['uploader_name'] ?? '') ?: '') ?></div>
-                        </div>
-                        <div>
-                            <?php if ($filePath): ?>
-                                <a href="<?= htmlspecialchars($filePath) ?>" class="btn btn-sm btn-outline-secondary me-1" download>Download</a>
-                            <?php endif; ?>
-                            <?php if ((int) ($file['uploaded_by'] ?? 0) === (int) ($_SESSION['user_id'] ?? 0)): ?>
-                                <form action="student_actions.php?action=delete_file&project_id=<?= $projectId ?>" method="post" class="d-inline">
-                                    <input type="hidden" name="file_id" value="<?= (int) $file['file_id'] ?>">
-                                    <button class="btn btn-sm btn-danger" type="submit" onclick="return confirm('Delete this file?')">Delete</button>
-                                </form>
-                            <?php endif; ?>
-=======
->>>>>>> 243fc3d
                     <div class="col-12 col-md-6">
                         <div class="card border-utm rounded-4 p-3 shadow-sm h-100">
                             <div class="d-flex align-items-start gap-3 mb-3">
@@ -365,10 +256,6 @@ require_once __DIR__ . '/student_header.php';
                                     </button>
                                 <?php endif; ?>
                             </div>
-<<<<<<< HEAD
-=======
->>>>>>> e28952c (update UI in student project, lect dashbaord/proj)
->>>>>>> 243fc3d
                         </div>
                     </div>
                 <?php endforeach; ?>

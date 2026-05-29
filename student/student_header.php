@@ -436,16 +436,13 @@ $statusProgress = static function (string $status): int {
         .status-pending { background: rgba(255, 193, 7, 0.15); color: #a16a15; }
         .status-rejected { background: rgba(244, 67, 54, 0.12); color: #a1271d; }
 
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
         .project-meta {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
             gap: 14px;
             color: var(--student-muted);
-=======
->>>>>>> 243fc3d
+        }
+
         .project-supervisor {
             display: flex;
             align-items: center;
@@ -455,10 +452,6 @@ $statusProgress = static function (string $status): int {
             border-radius: 12px;
             color: var(--student-text);
             font-size: 0.95rem;
-<<<<<<< HEAD
-=======
->>>>>>> e28952c (update UI in student project, lect dashbaord/proj)
->>>>>>> 243fc3d
         }
 
         .project-supervisor i {

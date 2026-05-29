@@ -30,19 +30,6 @@ require_once __DIR__ . '/student_header.php';
                 ?>
                     <article class="project-card">
                         <div class="project-card-header">
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-                            <h2><?= e($title ?: 'Untitled Project') ?></h2>
-                            <span class="project-badge <?= e($statusClass($projectStatus)) ?>"><?= e($statusText) ?></span>
-                        </div>
-                        <div class="project-meta">
-                            <span><i class="bi bi-hash"></i> <?= e($projectCode) ?></span>
-                            <span><i class="bi bi-tags-fill"></i> <?= e($category ?: 'No category') ?></span>
-                            <span><i class="bi bi-person-fill"></i> <?= e($supervisor ?: 'Lecturer not assigned') ?></span>
-                            <span><i class="bi bi-calendar-event"></i> <?= e($created) ?></span>
-=======
->>>>>>> 243fc3d
                             <div class="project-title-section">
                                 <h2><?= e($title ?: 'Untitled Project') ?></h2>
                                 <div class="project-meta-inline">
@@ -51,10 +38,6 @@ require_once __DIR__ . '/student_header.php';
                                 </div>
                             </div>
                             <span class="project-badge <?= e($statusClass($projectStatus)) ?>">● <?= e($statusText) ?></span>
-<<<<<<< HEAD
-=======
->>>>>>> e28952c (update UI in student project, lect dashbaord/proj)
->>>>>>> 243fc3d
                         </div>
                         <p class="project-description"><?= e($description ?: 'No project description has been assigned yet.') ?></p>
                         <div class="project-supervisor">

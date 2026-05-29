@@ -41,6 +41,35 @@ if (!function_exists('lecturerOwnsProject')) {
     }
 }
 
+if (!function_exists('fetchLecturerNotifications')) {
+    function fetchLecturerNotifications(PDO $db, int $lecturerId, int $limit = 8): array
+    {
+        $stmt = $db->prepare(
+            'SELECT n.notification_id, n.message, n.is_read, n.created_at, p.title_encrypted AS project_title, u.name_encrypted AS sender_name
+             FROM notifications n
+             LEFT JOIN projects p ON p.project_id = n.project_id
+             LEFT JOIN users u ON u.user_id = n.sender_user_id
+             WHERE n.recipient_user_id = ?
+             ORDER BY n.created_at DESC
+             LIMIT ?'
+        );
+        $stmt->bindValue(1, $lecturerId, PDO::PARAM_INT);
+        $stmt->bindValue(2, $limit, PDO::PARAM_INT);
+        $stmt->execute();
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+}
+
+if (!function_exists('countUnreadLecturerNotifications')) {
+    function countUnreadLecturerNotifications(PDO $db, int $lecturerId): int
+    {
+        $stmt = $db->prepare('SELECT COUNT(*) FROM notifications WHERE recipient_user_id = ? AND is_read = 0');
+        $stmt->execute([$lecturerId]);
+        return (int) $stmt->fetchColumn();
+    }
+}
+
 if (!function_exists('updateSubmissionStatus')) {
     function updateSubmissionStatus(PDO $db, int $projectId, string $status): void
     {
@@ -167,6 +196,17 @@ foreach ($projects as $project) {
     }
 }
 $assignedStudents = count($studentMap);
+}
+
+$notificationReturn = rawurlencode($_SERVER['REQUEST_URI'] ?? '/lecturer/lecturer_dashboard.php');
+$lecturerNotifications = [];
+$unreadNotificationCount = 0;
+try {
+    $lecturerNotifications = fetchLecturerNotifications($db, $lecturerId, 8);
+    $unreadNotificationCount = countUnreadLecturerNotifications($db, $lecturerId);
+} catch (Throwable $error) {
+    $lecturerNotifications = [];
+    $unreadNotificationCount = 0;
 }
 ?>
 <!DOCTYPE html>
@@ -314,6 +354,21 @@ $assignedStudents = count($studentMap);
             border-radius: 999px;
             border: 1px solid var(--lecturer-border);
             background: #fff;
+        }
+
+        .notification-menu {
+            min-width: 320px;
+            max-width: 420px;
+            padding: 0;
+        }
+
+        .notification-menu .dropdown-item {
+            white-space: normal;
+            line-height: 1.4;
+        }
+
+        .notification-menu .dropdown-item:hover {
+            background: #f8f9fa;
         }
 
         .avatar {
@@ -836,9 +891,34 @@ $assignedStudents = count($studentMap);
                 <strong><?= e($lecturerName) ?></strong>
             </div>
             <div class="d-flex align-items-center gap-2 gap-sm-3 ms-auto">
-                <button class="icon-button" type="button" aria-label="Notifications">
-                    <i class="bi bi-bell"></i>
-                </button>
+                <div class="dropdown">
+                    <button class="icon-button dropdown-toggle position-relative" type="button" id="notificationDropdown" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Notifications">
+                        <i class="bi bi-bell"></i>
+                        <?php if ($unreadNotificationCount > 0): ?>
+                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                                <?= e($unreadNotificationCount) ?>
+                                <span class="visually-hidden">unread notifications</span>
+                            </span>
+                        <?php endif; ?>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end notification-menu shadow" aria-labelledby="notificationDropdown">
+                        <li class="px-3 py-2 d-flex justify-content-between align-items-center border-bottom">
+                            <strong>Notifications</strong>
+                            <a href="../lecturer/lecturer_notifications.php?action=mark_all_read&return=<?= $notificationReturn ?>" class="small">Mark all read</a>
+                        </li>
+                        <?php if (count($lecturerNotifications) === 0): ?>
+                            <li><span class="dropdown-item text-muted">No notifications yet.</span></li>
+                        <?php endif; ?>
+                        <?php foreach ($lecturerNotifications as $notification): ?>
+                            <li>
+                                <a class="dropdown-item d-flex flex-column <?= $notification['is_read'] ? '' : 'fw-bold' ?>" href="../lecturer/lecturer_notifications.php?action=mark_read&id=<?= e($notification['notification_id']) ?>&return=<?= $notificationReturn ?>">
+                                    <span class="mb-1"><?= e($notification['message']) ?></span>
+                                    <small class="text-muted"><?= e(date('d M Y H:i', strtotime($notification['created_at']))) ?></small>
+                                </a>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                </div>
                 <div class="profile-chip">
                     <div class="avatar"><?= e($lecturerInitials) ?></div>
                     <div class="d-none d-sm-block pe-1">

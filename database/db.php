@@ -61,6 +61,7 @@ function initializeDatabase(PDO $db): void
     $db->exec($schema);
     ensureProjectCategoryColumn($db);
 }
+<<<<<<< HEAD
 
 function ensureProjectCategoryColumn(PDO $db): void
 {
@@ -96,3 +97,6 @@ function ensureProjectCategoryColumn(PDO $db): void
 }
 
 ensureProjectCategoryColumn($db);
+=======
+   
+>>>>>>> e28952c (update UI in student project, lect dashbaord/proj)

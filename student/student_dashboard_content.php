@@ -6,21 +6,33 @@
             </section>
 
             <section class="stats-grid">
-                <div class="stat-card">
-                    <h3>Total Projects</h3>
-                    <strong><?= e((string) $summary['total']) ?></strong>
+                <div class="stat-card stat-card-total">
+                    <div class="stat-icon"><i class="bi bi-folder-fill"></i></div>
+                    <div class="stat-content">
+                        <h3>Total Projects</h3>
+                        <strong><?= e((string) $summary['total']) ?></strong>
+                    </div>
                 </div>
-                <div class="stat-card">
-                    <h3>Pending Review</h3>
-                    <strong><?= e((string) $summary['pending']) ?></strong>
+                <div class="stat-card stat-card-pending">
+                    <div class="stat-icon"><i class="bi bi-clock-history"></i></div>
+                    <div class="stat-content">
+                        <h3>Pending Review</h3>
+                        <strong><?= e((string) $summary['pending']) ?></strong>
+                    </div>
                 </div>
-                <div class="stat-card">
-                    <h3>Approved</h3>
-                    <strong><?= e((string) $summary['approved']) ?></strong>
+                <div class="stat-card stat-card-approved">
+                    <div class="stat-icon"><i class="bi bi-check-circle-fill"></i></div>
+                    <div class="stat-content">
+                        <h3>Approved</h3>
+                        <strong><?= e((string) $summary['approved']) ?></strong>
+                    </div>
                 </div>
-                <div class="stat-card">
-                    <h3>Needs Revision</h3>
-                    <strong><?= e((string) $summary['rejected']) ?></strong>
+                <div class="stat-card stat-card-rejected">
+                    <div class="stat-icon"><i class="bi bi-exclamation-circle-fill"></i></div>
+                    <div class="stat-content">
+                        <h3>Needs Revision</h3>
+                        <strong><?= e((string) $summary['rejected']) ?></strong>
+                    </div>
                 </div>
             </section>
 
@@ -48,6 +60,7 @@
                         ?>
                         <article class="project-card">
                             <div class="project-card-header">
+<<<<<<< HEAD
                                 <h2><?= e($title ?: 'Untitled Project') ?></h2>
                                 <span class="project-badge <?= e($statusClass($projectStatus)) ?>"><?= e($statusText) ?></span>
                             </div>
@@ -56,15 +69,24 @@
                                 <span><i class="bi bi-tags-fill"></i> <?= e($category ?: 'No category') ?></span>
                                 <span><i class="bi bi-person-fill"></i> <?= e($supervisor ?: 'Supervisor not assigned') ?></span>
                                 <span><i class="bi bi-calendar-event"></i> <?= e($created ?: 'Date unavailable') ?></span>
+=======
+                                <div class="project-title-section">
+                                    <h2><?= e($title ?: 'Untitled Project') ?></h2>
+                                    <div class="project-meta-inline">
+                                        <span class="project-code"><i class="bi bi-hash"></i> <?= e($projectCode) ?></span>
+                                        <span class="project-date"><i class="bi bi-calendar-event"></i> <?= e($created ?: 'N/A') ?></span>
+                                    </div>
+                                </div>
+                                <span class="project-badge <?= e($statusClass($projectStatus)) ?>">● <?= e($statusText) ?></span>
+>>>>>>> e28952c (update UI in student project, lect dashbaord/proj)
                             </div>
                             <p class="project-description"><?= e($description ?: 'Project description will appear here once your group submits details.') ?></p>
-                            <div class="project-actions">
-                                <a href="student_project.php?project_id=<?= e($project['project_id']) ?>" class="btn btn-primary">View Details</a>
-                                <a href="#" class="btn btn-secondary">Submission History</a>
+                            <div class="project-supervisor">
+                                <i class="bi bi-person-circle"></i>
+                                <span>Supervised by: <strong><?= e($supervisor ?: 'Not assigned') ?></strong></span>
                             </div>
-                            <div>
-                                <div class="progress-track"><div class="progress-fill" style="width: <?= e((string) $progress) ?>%;"></div></div>
-                                <div style="margin-top: 10px; color: var(--student-muted); font-size: 0.95rem;">Last update: <?= e($submittedAt) ?></div>
+                            <div class="project-actions">
+                                <a href="student_project.php?project_id=<?= e($project['project_id']) ?>" class="btn btn-primary"><i class="bi bi-eye"></i> View Details</a>
                             </div>
                         </article>
                     <?php endforeach; ?>
@@ -72,11 +94,13 @@
             </section>
 
             <section class="activity-panel">
-                <h3>Activity Summary</h3>
+                <div class="activity-header">
+                    <h3><i class="bi bi-graph-up"></i> Activity Summary</h3>
+                </div>
                 <ul class="activity-list">
-                    <li>Accessed dashboard at <?= date('d M Y, H:i') ?></li>
-                    <li>Current role: Student</li>
-                    <li><?= e((string) $summary['total']) ?> project(s) assigned to your account</li>
+                    <li><i class="bi bi-calendar-check"></i> <span>Accessed dashboard at <?= date('d M Y, H:i') ?></span></li>
+                    <li><i class="bi bi-shield-check"></i> <span>Current role: <strong>Student</strong></span></li>
+                    <li><i class="bi bi-folder"></i> <span><?= e((string) $summary['total']) ?> project(s) assigned to your account</span></li>
                 </ul>
             </section>
         </main>

@@ -60,3 +60,4 @@ function initializeDatabase(PDO $db): void
     $schema = file_get_contents($schemaFile);
     $db->exec($schema);
 }
+   

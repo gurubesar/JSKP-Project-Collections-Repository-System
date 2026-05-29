@@ -77,3 +77,14 @@ CREATE TABLE IF NOT EXISTS submissions (
   submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   status TEXT CHECK (status IN ('pending','approved','rejected'))
 );
+
+CREATE TABLE IF NOT EXISTS notifications (
+  notification_id INTEGER PRIMARY KEY AUTOINCREMENT,
+  recipient_user_id INTEGER NOT NULL REFERENCES users(user_id),
+  sender_user_id INTEGER REFERENCES users(user_id),
+  project_id INTEGER REFERENCES projects(project_id),
+  notification_type TEXT NOT NULL,
+  message TEXT NOT NULL,
+  is_read INTEGER NOT NULL DEFAULT 0,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);

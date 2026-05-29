@@ -328,20 +328,44 @@ $statusProgress = static function (string $status): int {
             background: var(--student-card);
             border: 1px solid var(--student-border);
             box-shadow: var(--student-shadow);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
 
-        .stat-card h3 {
-            margin: 0 0 10px;
-            font-size: 0.96rem;
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 18px 46px rgba(28, 39, 60, 0.15);
+        }
+
+        .stat-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            flex-shrink: 0;
+        }
+
+        .stat-card-total .stat-icon { background: rgba(128, 0, 32, 0.12); color: var(--student-sidebar); }
+        .stat-card-pending .stat-icon { background: rgba(255, 193, 7, 0.15); color: #a16a15; }
+        .stat-card-approved .stat-icon { background: rgba(76, 175, 80, 0.15); color: #25732a; }
+        .stat-card-rejected .stat-icon { background: rgba(244, 67, 54, 0.15); color: #a1271d; }
+
+        .stat-content h3 {
+            margin: 0 0 6px;
+            font-size: 0.92rem;
             color: var(--student-muted);
-            font-weight: 700;
+            font-weight: 600;
         }
 
-        .stat-card strong {
+        .stat-content strong {
             display: block;
-            margin-top: 8px;
-            font-size: 2rem;
-            color: var(--student-sidebar);
+            font-size: 1.8rem;
+            color: var(--student-text);
         }
 
         .projects-grid {
@@ -365,14 +389,35 @@ $statusProgress = static function (string $status): int {
         .project-card-header {
             display: flex;
             justify-content: space-between;
+            align-items: flex-start;
             flex-wrap: wrap;
             gap: 14px;
         }
 
+        .project-title-section {
+            flex: 1;
+            min-width: 0;
+        }
+
         .project-card h2 {
-            margin: 0;
+            margin: 0 0 8px;
             font-size: 1.35rem;
             color: var(--student-sidebar);
+        }
+
+        .project-meta-inline {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            font-size: 0.9rem;
+            color: var(--student-muted);
+        }
+
+        .project-code,
+        .project-date {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
         }
 
         .project-badge {
@@ -389,26 +434,32 @@ $statusProgress = static function (string $status): int {
         .status-pending { background: rgba(255, 193, 7, 0.15); color: #a16a15; }
         .status-rejected { background: rgba(244, 67, 54, 0.12); color: #a1271d; }
 
-        .project-meta {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 14px;
-            color: var(--student-muted);
+        .project-supervisor {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            background: rgba(128, 0, 32, 0.06);
+            border-radius: 12px;
+            color: var(--student-text);
+            font-size: 0.95rem;
         }
 
-        .project-meta span {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.95rem;
-            min-width: 0;
-            flex-wrap: wrap;
+        .project-supervisor i {
+            font-size: 1.1rem;
+            color: var(--student-sidebar);
         }
 
         .project-description {
             margin: 0;
             color: var(--student-muted);
             line-height: 1.75;
+        }
+
+        .project-footer {
+            color: var(--student-muted);
+            font-size: 0.95rem;
+            margin-top: 10px;
         }
 
         .project-actions {
@@ -422,19 +473,6 @@ $statusProgress = static function (string $status): int {
             color: #2b1800;
         }
 
-        .progress-track {
-            height: 12px;
-            border-radius: 999px;
-            background: #f3f1ee;
-            overflow: hidden;
-            margin-top: 12px;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, var(--student-sidebar), #d82842);
-        }
-
         .activity-panel {
             padding: 22px;
             border-radius: 22px;
@@ -443,9 +481,24 @@ $statusProgress = static function (string $status): int {
             box-shadow: var(--student-shadow);
         }
 
+        .activity-header {
+            margin-bottom: 18px;
+            padding-bottom: 14px;
+            border-bottom: 2px solid var(--student-border);
+        }
+
         .activity-panel h3 {
-            margin-top: 0;
-            margin-bottom: 16px;
+            margin: 0;
+            font-size: 1.1rem;
+            color: var(--student-text);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .activity-panel h3 i {
+            color: var(--student-sidebar);
+            font-size: 1.25rem;
         }
 
         .activity-list {
@@ -453,18 +506,72 @@ $statusProgress = static function (string $status): int {
             padding: 0;
             margin: 0;
             display: grid;
-            gap: 12px;
+            gap: 10px;
         }
 
         .activity-list li {
-            padding: 16px;
-            border-radius: 18px;
+            padding: 14px;
+            border-radius: 12px;
             background: #faf8f5;
             border: 1px solid var(--student-border);
             color: var(--student-text);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.95rem;
+            transition: background 0.2s ease;
+        }
+
+        .activity-list li:hover {
+            background: rgba(128, 0, 32, 0.04);
+        }
+
+        .activity-list li i {
+            color: var(--student-sidebar);
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+
+        .activity-list li span {
+            flex: 1;
         }
 
         @media (max-width: 1140px) {
+
+        .project-actions .btn {
+            gap: 8px;
+            padding: 10px 16px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            border-radius: 12px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .project-actions .btn:hover {
+            transform: translateY(-1px);
+        }
+
+        .project-actions .btn-primary {
+            background: var(--student-sidebar);
+            color: #fff;
+            border: none;
+        }
+
+        .project-actions .btn-primary:hover {
+            background: #5e0016;
+            box-shadow: 0 8px 18px rgba(128, 0, 32, 0.25);
+        }
+
+        .project-actions .btn-secondary {
+            background: var(--student-gold);
+            color: #2b1800;
+            border: none;
+        }
+
+        .project-actions .btn-secondary:hover {
+            background: #c99408;
+            box-shadow: 0 8px 18px rgba(201, 148, 8, 0.25);
+        }
             .student-shell {
                 grid-template-columns: 1fr;
             }

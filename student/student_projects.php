@@ -29,22 +29,22 @@ require_once __DIR__ . '/student_header.php';
                 ?>
                     <article class="project-card">
                         <div class="project-card-header">
-                            <h2><?= e($title ?: 'Untitled Project') ?></h2>
-                            <span class="project-badge <?= e($statusClass($projectStatus)) ?>"><?= e($statusText) ?></span>
-                        </div>
-                        <div class="project-meta">
-                            <span><i class="bi bi-hash"></i> <?= e($projectCode) ?></span>
-                            <span><i class="bi bi-person-fill"></i> <?= e($supervisor ?: 'Lecturer not assigned') ?></span>
-                            <span><i class="bi bi-calendar-event"></i> <?= e($created) ?></span>
+                            <div class="project-title-section">
+                                <h2><?= e($title ?: 'Untitled Project') ?></h2>
+                                <div class="project-meta-inline">
+                                    <span class="project-code"><i class="bi bi-hash"></i> <?= e($projectCode) ?></span>
+                                    <span class="project-date"><i class="bi bi-calendar-event"></i> <?= e($created) ?></span>
+                                </div>
+                            </div>
+                            <span class="project-badge <?= e($statusClass($projectStatus)) ?>">● <?= e($statusText) ?></span>
                         </div>
                         <p class="project-description"><?= e($description ?: 'No project description has been assigned yet.') ?></p>
-                        <div class="project-actions">
-                            <a href="student_project.php?project_id=<?= e($project['project_id']) ?>" class="btn btn-primary">View Details</a>
-                            <a href="#" class="btn btn-secondary">Submission History</a>
+                        <div class="project-supervisor">
+                            <i class="bi bi-person-circle"></i>
+                            <span>Supervised by: <strong><?= e($supervisor ?: 'Not assigned') ?></strong></span>
                         </div>
-                        <div>
-                            <div class="progress-track"><div class="progress-fill" style="width: <?= e((string) $progress) ?>%;"></div></div>
-                            <div style="margin-top: 10px; color: var(--student-muted); font-size: 0.95rem;">Last update: <?= e($submittedAt) ?></div>
+                        <div class="project-actions">
+                            <a href="student_project.php?project_id=<?= e($project['project_id']) ?>" class="btn btn-primary"><i class="bi bi-eye"></i> View Details</a>
                         </div>
                     </article>
                 <?php endforeach; ?>

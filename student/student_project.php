@@ -56,35 +56,70 @@ unset($_SESSION['student_flash'], $_SESSION['student_flash_type']);
             </div>
         <?php endif; ?>
 
-        <div class="d-flex align-items-center justify-content-between mb-4">
-            <div>
-                <h1 class="h3 fw-bold"><?= htmlspecialchars($title) ?></h1>
-                <p class="text-muted mb-0">Project Code: <?= 'UTM-FYP-' . str_pad((string) $projectId, 4, '0', STR_PAD_LEFT) ?></p>
-            </div>
-            <div class="d-flex gap-2">
-                <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#generateProposalModal">Generate Proposal</button>
-                <button class="btn btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#uploadBox">Upload File</button>
-            </div>
-        </div>
-
-        <p><?= nl2br(htmlspecialchars($description)) ?></p>
-
-        <div id="uploadBox" class="collapse">
-            <form action="student_actions.php?action=upload_file&project_id=<?= $projectId ?>" method="post" enctype="multipart/form-data">
-                <div class="mb-3">
-                    <label class="form-label">Select PDF file</label>
-                    <input type="file" name="project_file" class="form-control" accept="application/pdf" required>
-                    <div class="form-text">Please submit only PDF files.</div>
+        <?php $fileCount = count($files); ?>
+        <div class="hero-panel mb-4">
+            <div class="row align-items-center gx-4">
+                <div class="col-lg-8">
+                    <span class="badge badge-utm-gold mb-3">Project Overview</span>
+                    <h1 class="display-6 fw-bold mb-2"><?= htmlspecialchars($title) ?></h1>
+                    <p class="text-muted mb-3">Project Code: <span class="fw-semibold"><?= 'UTM-FYP-' . str_pad((string) $projectId, 4, '0', STR_PAD_LEFT) ?></span></p>
+                    <p class="mb-4"><?= nl2br(htmlspecialchars($description ?: 'No project description provided yet.')) ?></p>
+                    <div class="d-flex flex-wrap gap-2">
+                        <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#generateProposalModal">Generate Proposal</button>
+                        <button class="btn btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#uploadBox">Upload File</button>
+                    </div>
                 </div>
-                <button class="btn btn-primary" type="submit">Upload</button>
-            </form>
+                <div class="col-lg-4 mt-4 mt-lg-0">
+                    <div class="card border-utm rounded-4 p-4 shadow-sm">
+                        <h2 class="h5 mb-3">Project Snapshot</h2>
+                        <div class="d-flex align-items-center justify-content-between mb-3">
+                            <div>
+                                <div class="text-muted">Files uploaded</div>
+                                <div class="fs-4 fw-bold"><?= $fileCount ?></div>
+                            </div>
+                            <div class="text-end">
+                                <div class="text-muted">Supervisor</div>
+                                <div class="fw-semibold"><?= htmlspecialchars($supervisor ?: 'Not assigned') ?></div>
+                            </div>
+                        </div>
+                        <div class="divider mb-3" style="height:1px;background:rgba(128,0,32,0.08);"></div>
+                        <div>
+                            <div class="text-muted">Latest update</div>
+                            <div class="fw-semibold"><?= htmlspecialchars($files[0]['uploaded_at'] ?? 'No uploads yet') ?></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <h4 class="mt-4">Project Files</h4>
+        <div id="uploadBox" class="collapse mb-4">
+            <div class="card border-utm rounded-4 p-4 shadow-sm">
+                <h2 class="h5 mb-3">Upload New File</h2>
+                <form action="student_actions.php?action=upload_file&project_id=<?= $projectId ?>" method="post" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label class="form-label">Select PDF file</label>
+                        <input type="file" name="project_file" class="form-control" accept="application/pdf" required>
+                        <div class=\"form-text\">Please submit only PDF files (max 200 MB).</div>
+                    </div>
+                    <button class="btn btn-utm" type="submit">Upload</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="section-title mt-4">
+            <div>
+                <h2>Project Files</h2>
+                <p class="text-muted">Manage all uploaded documents and proposals for this project.</p>
+            </div>
+            <span class="badge badge-utm-gold align-self-start">Total files: <?= $fileCount ?></span>
+        </div>
+
         <?php if (empty($files)): ?>
-            <div class="text-muted">No files uploaded yet.</div>
+            <div class="card border-utm rounded-4 p-4 shadow-sm">
+                <p class="mb-0 text-muted">No files uploaded yet. Use the button above to add a proposal or document.</p>
+            </div>
         <?php else: ?>
-            <div class="list-group">
+            <div class="row g-3">
                 <?php foreach ($files as $file): 
                     $fileName = '';
                     $filePath = '';
@@ -95,21 +130,34 @@ unset($_SESSION['student_flash'], $_SESSION['student_flash_type']);
                         // ignore
                     }
                 ?>
-                    <div class="list-group-item d-flex justify-content-between align-items-center">
-                        <div>
-                            <strong><?= htmlspecialchars($fileName ?: 'File') ?></strong>
-                            <div class="small text-muted">Uploaded: <?= htmlspecialchars($file['uploaded_at'] ?? '') ?> by <?= htmlspecialchars(decryptData($file['uploader_name'] ?? '') ?: '') ?></div>
-                        </div>
-                        <div>
-                            <?php if ($filePath): ?>
-                                <a href="<?= htmlspecialchars($filePath) ?>" class="btn btn-sm btn-outline-secondary me-1" download>Download</a>
-                            <?php endif; ?>
-                            <?php if ((int) ($file['uploaded_by'] ?? 0) === (int) ($_SESSION['user_id'] ?? 0)): ?>
-                                <form action="student_actions.php?action=delete_file&project_id=<?= $projectId ?>" method="post" class="d-inline">
-                                    <input type="hidden" name="file_id" value="<?= (int) $file['file_id'] ?>">
-                                    <button class="btn btn-sm btn-danger" type="submit" onclick="return confirm('Delete this file?')">Delete</button>
-                                </form>
-                            <?php endif; ?>
+                    <div class="col-12 col-md-6">
+                        <div class="card border-utm rounded-4 p-3 shadow-sm h-100">
+                            <div class="d-flex align-items-start gap-3 mb-3">
+                                <div class="bg-utm-maroon rounded-4 p-3 text-white d-flex align-items-center justify-content-center" style="width:56px;height:56px;">
+                                    <i class="bi bi-file-earmark-text-fill fs-4"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <h3 class="h6 mb-1"><?= htmlspecialchars($fileName ?: 'Untitled Document') ?></h3>
+                                    <p class="mb-1 text-muted">Uploaded: <?= htmlspecialchars($file['uploaded_at'] ?? '') ?></p>
+                                    <p class="mb-0 text-muted">By <?= htmlspecialchars(decryptData($file['uploader_name'] ?? '') ?: 'Student') ?></p>
+                                </div>
+                            </div>
+                            <div class="d-flex flex-wrap gap-2">
+                                <?php if ($filePath): ?>
+                                    <a href="<?= htmlspecialchars($filePath) ?>" class="btn btn-outline-secondary btn-sm">Download</a>
+                                <?php endif; ?>
+                                <?php if ((int) ($file['uploaded_by'] ?? 0) === (int) ($_SESSION['user_id'] ?? 0)): ?>
+                                    <button
+                                        class="btn btn-danger btn-sm"
+                                        type="button"
+                                        data-file-id="<?= (int) $file['file_id'] ?>"
+                                        data-file-name="<?= htmlspecialchars($fileName ?: 'File', ENT_QUOTES) ?>"
+                                        data-project-id="<?= $projectId ?>"
+                                        onclick="openDeleteFileModal(this)">
+                                        Delete
+                                    </button>
+                                <?php endif; ?>
+                            </div>
                         </div>
                     </div>
                 <?php endforeach; ?>
@@ -129,6 +177,11 @@ unset($_SESSION['student_flash'], $_SESSION['student_flash_type']);
       </div>
       <div class="modal-body">
         <div class="row g-3">
+          <div class="col-12 col-md-6">
+            <label class="form-label">Proposal File Name</label>
+            <input class="form-control" name="proposal_file_name" placeholder="e.g. UTM-FYP-0101-Proposal" required>
+            <div class="form-text">Enter the file name to use for the downloaded proposal document (without extension).</div>
+          </div>
           <div class="col-12 col-md-6">
             <label class="form-label">Project Title</label>
             <input class="form-control" name="proposal_title" value="<?= htmlspecialchars($title) ?>" required>
@@ -218,6 +271,45 @@ unset($_SESSION['student_flash'], $_SESSION['student_flash_type']);
     </form>
   </div>
 </div>
+
+<!-- Confirm Delete File Modal -->
+<div class="modal fade" id="confirmDeleteFileModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Confirm File Deletion</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p>Authorization is required to delete this project file.</p>
+        <p class="fw-semibold" id="deleteFileName">File</p>
+        <p class="text-muted small">This action cannot be undone. Please confirm before proceeding.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <form id="deleteFileConfirmForm" method="post" action="">
+          <input type="hidden" name="file_id" id="confirmFileId" value="">
+          <button type="submit" class="btn btn-danger">Delete File</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function openDeleteFileModal(button) {
+  const fileId = button.dataset.fileId;
+  const fileName = button.dataset.fileName;
+  const projectId = button.dataset.projectId;
+  document.getElementById('deleteFileName').textContent = fileName;
+  const form = document.getElementById('deleteFileConfirmForm');
+  form.action = `student_actions.php?action=delete_file&project_id=${encodeURIComponent(projectId)}`;
+  document.getElementById('confirmFileId').value = fileId;
+  const deleteModal = new bootstrap.Modal(document.getElementById('confirmDeleteFileModal'));
+  deleteModal.show();
+}
+</script>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

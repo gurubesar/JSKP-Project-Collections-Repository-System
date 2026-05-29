@@ -823,6 +823,52 @@
   .report-item p { font-size: 12px; color: var(--text-muted); }
   .report-icon { font-size: 22px; margin-bottom: 10px; }
 
+  .report-panel .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+
+  .report-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .report-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+
+  .report-metric {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+  }
+
+  .report-metric strong {
+    display: block;
+    font-size: 18px;
+    font-weight: 800;
+    margin-bottom: 6px;
+  }
+
+  .report-metric span {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .report-table-wrapper {
+    overflow-x: auto;
+  }
+
+  .hidden { display: none; }
+
   /* SETTINGS */
   .settings-section { background: white; border-radius: 14px; border: 1px solid var(--border); margin-bottom: 20px; overflow: hidden; }
   .settings-section .card-header { border-bottom: 1px solid var(--border); }
@@ -1287,35 +1333,56 @@
       <div class="page" id="page-reports">
         <div class="section-title">Generate Reports</div>
         <div class="report-grid">
-          <div class="report-item" onclick="showToast('Generating Enrollment report...')">
+          <div class="report-item" onclick="generateReport('enrollment')">
             <div class="report-icon">📈</div>
             <h4>Enrollment Report</h4>
             <p>Student registration stats by faculty and program</p>
           </div>
-          <div class="report-item" onclick="showToast('Generating Submission report...')">
+          <div class="report-item" onclick="generateReport('submission')">
             <div class="report-icon">📄</div>
             <h4>Submission Report</h4>
             <p>Deadline compliance and submission rates</p>
           </div>
-          <div class="report-item" onclick="showToast('Generating Finance report...')">
+          <div class="report-item" onclick="generateReport('finance')">
             <div class="report-icon">💹</div>
             <h4>Finance Report</h4>
             <p>Revenue breakdown, fees collected, pending payments</p>
           </div>
-          <div class="report-item" onclick="showToast('Generating Project report...')">
+          <div class="report-item" onclick="generateReport('project')">
             <div class="report-icon">📁</div>
             <h4>Project Report</h4>
             <p>Active projects, completion rates, supervisors</p>
           </div>
-          <div class="report-item" onclick="showToast('Generating Lecturer report...')">
+          <div class="report-item" onclick="generateReport('lecturer')">
             <div class="report-icon">🎓</div>
             <h4>Lecturer Report</h4>
             <p>Workload, student ratios, publications</p>
           </div>
-          <div class="report-item" onclick="showToast('Generating Activity report...')">
+          <div class="report-item" onclick="generateReport('activity')">
             <div class="report-icon">🔍</div>
             <h4>System Activity Report</h4>
             <p>Admin actions, logins, changes log</p>
+          </div>
+        </div>
+        <div class="card report-panel">
+          <div class="card-header">
+            <div>
+              <h3 id="report-heading">Report Preview</h3>
+              <p id="report-description">Select a report tile to load report data and export options.</p>
+            </div>
+            <div class="report-actions hidden" id="report-actions">
+              <button class="btn-outline" onclick="exportReportPDF()">Download PDF</button>
+              <button class="btn-primary" onclick="exportReportExcel()">Export Excel</button>
+            </div>
+          </div>
+          <div class="card-body hidden" id="report-output">
+            <div class="report-summary" id="report-summary"></div>
+            <div class="report-table-wrapper">
+              <table id="report-table">
+                <thead></thead>
+                <tbody></tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
@@ -1579,6 +1646,7 @@
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha512-BBzrYZfzGV+qx4O0Cedb+speNtxQbz0o0C+Z8yGbHw3hb7Yb8XGx8AasH1Djg+B2/7uWZY+XB8e0P+fF1q4BsA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script>
   const CREDS = { email: 'admin@utm.edu.my', password: 'admin123' };
 
@@ -1652,6 +1720,330 @@
   document.querySelectorAll('.modal-overlay').forEach(m => {
     m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
   });
+
+  let currentReport = null;
+
+  function getProjectRows() {
+    return Array.from(document.querySelectorAll('#page-projects .table-wrapper tbody tr')).map(row => {
+      const cells = row.querySelectorAll('td');
+      return {
+        title: cells[0]?.textContent.trim() || '',
+        student: cells[1]?.textContent.trim() || '',
+        supervisor: cells[2]?.textContent.trim() || '',
+        faculty: cells[3]?.textContent.trim() || '',
+        deadline: cells[4]?.textContent.trim() || '',
+        status: cells[5]?.textContent.trim() || '',
+      };
+    });
+  }
+
+  function getStudentRows() {
+    return Array.from(document.querySelectorAll('#page-students .table-wrapper tbody tr')).map(row => {
+      const cells = row.querySelectorAll('td');
+      return {
+        name: cells[0]?.textContent.trim() || '',
+        matrixId: cells[1]?.textContent.trim() || '',
+        program: cells[2]?.textContent.trim() || '',
+        status: cells[3]?.textContent.trim() || '',
+      };
+    });
+  }
+
+  function getSubmissionRows() {
+    return Array.from(document.querySelectorAll('#page-submissions .table-wrapper tbody tr')).map(row => {
+      const cells = row.querySelectorAll('td');
+      return {
+        title: cells[0]?.textContent.trim() || '',
+        faculty: cells[1]?.textContent.trim() || '',
+        type: cells[2]?.textContent.trim() || '',
+        deadline: cells[3]?.textContent.trim() || '',
+        submitted: cells[4]?.textContent.trim() || '',
+        status: cells[5]?.textContent.trim() || '',
+      };
+    });
+  }
+
+  function getLecturerRows() {
+    return Array.from(document.querySelectorAll('#page-lecturers .table-wrapper tbody tr')).map(row => {
+      const cells = row.querySelectorAll('td');
+      return {
+        name: cells[0]?.textContent.trim() || '',
+        lecturerId: cells[1]?.textContent.trim() || '',
+        faculty: cells[2]?.textContent.trim() || '',
+        subject: cells[3]?.textContent.trim() || '',
+        load: cells[4]?.textContent.trim() || '',
+        status: cells[5]?.textContent.trim() || '',
+      };
+    });
+  }
+
+  function getActivityRows() {
+    return Array.from(document.querySelectorAll('#page-activity .table-wrapper tbody tr')).map(row => {
+      const cells = row.querySelectorAll('td');
+      return {
+        timestamp: cells[0]?.textContent.trim() || '',
+        admin: cells[1]?.textContent.trim() || '',
+        action: cells[2]?.textContent.trim() || '',
+        target: cells[3]?.textContent.trim() || '',
+        ip: cells[4]?.textContent.trim() || '',
+      };
+    });
+  }
+
+  function getFinanceMetrics() {
+    return Array.from(document.querySelectorAll('#page-finance .metric-box')).map(box => ({
+      label: box.querySelector('h4')?.textContent.trim() || '',
+      value: box.querySelector('.metric-val')?.textContent.trim() || '',
+      detail: box.querySelector('.metric-sub')?.textContent.trim() || '',
+    }));
+  }
+
+  function getFinanceTransactionRows() {
+    return Array.from(document.querySelectorAll('#page-finance .table-wrapper tbody tr')).map(row => {
+      const cells = row.querySelectorAll('td');
+      return {
+        file: cells[0]?.textContent.trim() || '',
+        type: cells[1]?.textContent.trim() || '',
+        size: cells[2]?.textContent.trim() || '',
+        owner: cells[3]?.textContent.trim() || '',
+        date: cells[4]?.textContent.trim() || '',
+        status: cells[5]?.textContent.trim() || '',
+      };
+    });
+  }
+
+  function summarizeByField(rows, field) {
+    return rows.reduce((acc, row) => {
+      const key = row[field] || 'Unknown';
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+  }
+
+  function formatSummaryItems(items) {
+    return items.map(item => `\u2022 ${item.label}: ${item.value}`).join('\n');
+  }
+
+  function buildReport(type) {
+    switch (type) {
+      case 'project': {
+        const projects = getProjectRows();
+        const active = projects.filter(p => p.status.toLowerCase().includes('active')).length;
+        const pending = projects.filter(p => p.status.toLowerCase().includes('pending')).length;
+        const byFaculty = summarizeByField(projects, 'faculty');
+        const bySupervisor = summarizeByField(projects, 'supervisor');
+
+        return {
+          title: 'Project Report',
+          description: 'Active projects, completion rates, supervisor load and faculty distribution.',
+          summary: [
+            { label: 'Total Projects', value: projects.length },
+            { label: 'Active Projects', value: active },
+            { label: 'Pending Projects', value: pending },
+            { label: 'Faculties represented', value: Object.keys(byFaculty).length },
+          ],
+          columns: ['Project', 'Student', 'Supervisor', 'Faculty', 'Deadline', 'Status'],
+          rows: projects.map(p => [p.title, p.student, p.supervisor, p.faculty, p.deadline, p.status]),
+          details: [`Faculty breakdown: ${Object.entries(byFaculty).map(([k,v]) => `${k} (${v})`).join(', ')}`,
+                    `Supervisor coverage: ${Object.entries(bySupervisor).map(([k,v]) => `${k} (${v})`).join(', ')}`],
+        };
+      }
+      case 'enrollment': {
+        const students = getStudentRows();
+        const byProgram = summarizeByField(students, 'program');
+        const statusCounts = summarizeByField(students, 'status');
+        return {
+          title: 'Enrollment Report',
+          description: 'Student registration counts aggregated by program and status.',
+          summary: [
+            { label: 'Total Students', value: students.length },
+            { label: 'Active Students', value: statusCounts.Active || 0 },
+            { label: 'Pending Students', value: statusCounts.Pending || 0 },
+            { label: 'Programs represented', value: Object.keys(byProgram).length },
+          ],
+          columns: ['Name', 'Matrix ID', 'Program', 'Status'],
+          rows: students.map(s => [s.name, s.matrixId, s.program, s.status]),
+          details: [`Program distribution: ${Object.entries(byProgram).map(([k,v]) => `${k} (${v})`).join(', ')}`],
+        };
+      }
+      case 'submission': {
+        const submissions = getSubmissionRows();
+        const statusCounts = summarizeByField(submissions, 'status');
+        const typeCounts = summarizeByField(submissions, 'type');
+        return {
+          title: 'Submission Report',
+          description: 'Overview of deadline compliance, submission status and submission types.',
+          summary: [
+            { label: 'Total Submissions', value: submissions.length },
+            { label: 'Completed', value: statusCounts.Completed || 0 },
+            { label: 'In Progress', value: statusCounts['In Progress'] || 0 },
+            { label: 'Submission types', value: Object.keys(typeCounts).length },
+          ],
+          columns: ['Title', 'Faculty', 'Type', 'Deadline', 'Submitted', 'Status'],
+          rows: submissions.map(s => [s.title, s.faculty, s.type, s.deadline, s.submitted, s.status]),
+          details: [`Type distribution: ${Object.entries(typeCounts).map(([k,v]) => `${k} (${v})`).join(', ')}`],
+        };
+      }
+      case 'finance': {
+        const metrics = getFinanceMetrics();
+        const transactions = getFinanceTransactionRows();
+        return {
+          title: 'Finance Report',
+          description: 'High-level finance metrics and recent transaction summary.',
+          summary: metrics.map(metric => ({ label: metric.label, value: metric.value })),
+          columns: ['File', 'Type', 'Size', 'Owner', 'Date', 'Status'],
+          rows: transactions.map(tx => [tx.file, tx.type, tx.size, tx.owner, tx.date, tx.status]),
+          details: [`Details: ${metrics.map(metric => `${metric.label} ${metric.detail}`).join('; ')}`],
+        };
+      }
+      case 'lecturer': {
+        const lecturers = getLecturerRows();
+        const facultyCounts = summarizeByField(lecturers, 'faculty');
+        const statusCounts = summarizeByField(lecturers, 'status');
+        return {
+          title: 'Lecturer Report',
+          description: 'Lecturer workload, active status and faculty allocation.',
+          summary: [
+            { label: 'Total Lecturers', value: lecturers.length },
+            { label: 'Active Lecturers', value: statusCounts.Active || 0 },
+            { label: 'Pending Lecturers', value: statusCounts.Pending || 0 },
+            { label: 'Faculties represented', value: Object.keys(facultyCounts).length },
+          ],
+          columns: ['Name', 'Lecturer ID', 'Faculty', 'Subject', 'Load', 'Status'],
+          rows: lecturers.map(l => [l.name, l.lecturerId, l.faculty, l.subject, l.load, l.status]),
+          details: [`Faculty distribution: ${Object.entries(facultyCounts).map(([k,v]) => `${k} (${v})`).join(', ')}`],
+        };
+      }
+      case 'activity': {
+        const activity = getActivityRows();
+        const actionCounts = summarizeByField(activity, 'action');
+        return {
+          title: 'Activity Report',
+          description: 'System actions by admin users and recent activity logs.',
+          summary: [
+            { label: 'Total Events', value: activity.length },
+            { label: 'Unique Admins', value: new Set(activity.map(item => item.admin)).size },
+            { label: 'Most common action', value: Object.entries(actionCounts).sort((a,b) => b[1]-a[1])[0]?.[0] || 'None' },
+            { label: 'IP sources', value: new Set(activity.map(item => item.ip)).size },
+          ],
+          columns: ['Timestamp', 'Admin', 'Action', 'Target', 'IP Address'],
+          rows: activity.map(a => [a.timestamp, a.admin, a.action, a.target, a.ip]),
+          details: [`Action count: ${Object.entries(actionCounts).map(([k,v]) => `${k} (${v})`).join(', ')}`],
+        };
+      }
+      default:
+        return null;
+    }
+  }
+
+  function generateReport(type) {
+    const report = buildReport(type);
+    if (!report) {
+      showToast('Report type not supported yet.');
+      return;
+    }
+    currentReport = report;
+    renderReport(report);
+    showToast(`${report.title} generated`);
+  }
+
+  function renderReport(report) {
+    document.getElementById('report-heading').textContent = report.title;
+    document.getElementById('report-description').textContent = report.description;
+    const summaryContainer = document.getElementById('report-summary');
+    summaryContainer.innerHTML = report.summary.map(item => `
+      <div class="report-metric">
+        <strong>${item.value}</strong>
+        <span>${item.label}</span>
+      </div>
+    `).join('');
+
+    const table = document.getElementById('report-table');
+    table.querySelector('thead').innerHTML = `<tr>${report.columns.map(col => `<th>${col}</th>`).join('')}</tr>`;
+    table.querySelector('tbody').innerHTML = report.rows.map(row => `
+      <tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>
+    `).join('');
+
+    document.getElementById('report-output').classList.remove('hidden');
+    document.getElementById('report-actions').classList.remove('hidden');
+  }
+
+  function downloadFile(filename, blob) {
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+  }
+
+  function exportReportExcel() {
+    if (!currentReport) {
+      showToast('Please generate a report first.');
+      return;
+    }
+    const table = document.getElementById('report-table');
+    const html = `<table>${table.innerHTML}</table>`;
+    const blob = new Blob(['\ufeff', html], { type: 'application/vnd.ms-excel' });
+    downloadFile(`${currentReport.title.replace(/\s+/g,'_')}.xls`, blob);
+  }
+
+  function exportReportPDF() {
+    if (!currentReport) {
+      showToast('Please generate a report first.');
+      return;
+    }
+    if (!window.jspdf) {
+      showToast('PDF export is not available.');
+      return;
+    }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+    const margin = 40;
+    let y = 50;
+
+    doc.setFontSize(18);
+    doc.text(currentReport.title, margin, y);
+    y += 24;
+
+    doc.setFontSize(11);
+    doc.text(currentReport.description, margin, y, { maxWidth: 520 });
+    y += 24;
+
+    currentReport.summary.forEach(item => {
+      doc.setFontSize(11);
+      doc.text(`${item.label}: ${item.value}`, margin, y);
+      y += 16;
+    });
+
+    if (currentReport.details && currentReport.details.length) {
+      y += 8;
+      currentReport.details.forEach(detail => {
+        doc.setFontSize(10);
+        doc.text(`• ${detail}`, margin, y, { maxWidth: 520 });
+        y += 14;
+      });
+    }
+
+    y += 12;
+    doc.setFontSize(12);
+    doc.text(currentReport.columns.join(' | '), margin, y);
+    y += 16;
+
+    currentReport.rows.forEach(row => {
+      if (y > 760) {
+        doc.addPage();
+        y = 50;
+      }
+      doc.setFontSize(10);
+      doc.text(row.join(' | '), margin, y, { maxWidth: 520 });
+      y += 14;
+    });
+
+    doc.save(`${currentReport.title.replace(/\s+/g,'_')}.pdf`);
+  }
 
   let toastTimer;
   function showToast(msg) {

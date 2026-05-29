@@ -381,80 +381,75 @@ require __DIR__ . '/admin_header.php';
                 </button>
             </div>
 
-            <div class="dashboard-card">
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Project</th>
-                                <th>Lecturer</th>
-                                <th>Students</th>
-                                <th>Study Year</th>
-                                <th>Status</th>
-                                <th>Created</th>
-                                <th class="text-end">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php if (empty($projects)): ?>
-                                <tr>
-                                    <td colspan="7" class="text-center text-muted py-4">No projects found</td>
-                                </tr>
-                            <?php else: ?>
-                                <?php foreach ($projects as $project): ?>
-                                    <?php
-                                    $studentMembers = array_filter(
-                                        $project['members'],
-                                        static fn($member) => $member['role'] === 'student'
-                                    );
-                                    ?>
-                                    <tr>
-                                        <td>
-                                            <div class="fw-bold"><?= h($project['title']) ?></div>
-                                            <small class="text-muted"><?= h($project['code']) ?></small>
-                                        </td>
-                                        <td>
-                                            <?php if ($project['lecturer_name']): ?>
-                                                <div class="fw-semibold"><?= h($project['lecturer_name']) ?></div>
-                                                <small class="text-muted"><?= h($project['lecturer_staff_id'] ?: $project['lecturer_email']) ?></small>
-                                            <?php else: ?>
-                                                <span class="text-muted">No lecturer assigned</span>
-                                            <?php endif; ?>
-                                        </td>
-                                        <td>
-                                            <?php if (empty($studentMembers)): ?>
-                                                <span class="text-muted">No students assigned</span>
-                                            <?php else: ?>
-                                                <div class="d-flex flex-column gap-1">
-                                                    <?php foreach ($studentMembers as $student): ?>
-                                                        <span>
-                                                            <?= h($student['name']) ?>
-                                                            <?php if ($student['matric_no']): ?>
-                                                                <small class="text-muted">(<?= h($student['matric_no']) ?>)</small>
-                                                            <?php endif; ?>
-                                                        </span>
-                                                    <?php endforeach; ?>
-                                                </div>
-                                            <?php endif; ?>
-                                        </td>
-                                        <td><?= $project['study_year'] !== '' ? h($project['study_year']) : '<span class="text-muted">Not set</span>' ?></td>
-                                        <td><span class="status-badge"><?= h(ucfirst((string) $project['status'])) ?></span></td>
-                                        <td><?= h(date('M j, Y', strtotime((string) $project['created_at']))) ?></td>
-                                        <td class="text-end">
-                                            <button class="btn btn-sm btn-outline-primary me-1" type="button" data-bs-toggle="modal" data-bs-target="#editProjectModal<?= $project['id'] ?>">
-                                                <i class="bi bi-pencil"></i> Edit
-                                            </button>
-                                            <button class="btn btn-sm btn-outline-danger" type="button" data-bs-toggle="modal" data-bs-target="#deleteProjectModal<?= $project['id'] ?>">
-                                                <i class="bi bi-trash"></i> Delete
-                                            </button>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+            <section class="projects-grid">
+                <?php if (empty($projects)): ?>
+                    <div class="dashboard-card text-center py-5">
+                        <p class="mb-0 text-muted">No projects found. Create one using the button above.</p>
+                    </div>
+                <?php else: ?>
+                    <div class="row g-4">
+                        <?php foreach ($projects as $project): ?>
+                            <?php
+                            $studentMembers = array_filter(
+                                $project['members'],
+                                static fn($member) => $member['role'] === 'student'
+                            );
+                            $lecturerLabel = $project['lecturer_name']
+                                ? h($project['lecturer_name'])
+                                : '<span class="text-muted">No lecturer assigned</span>';
+                            $studentCountLabel = empty($studentMembers)
+                                ? '<span class="text-muted">No students assigned</span>'
+                                : '<strong>' . count($studentMembers) . '</strong> student' . (count($studentMembers) !== 1 ? 's' : '');
+                            ?>
+                            <div class="col-12">
+                                <article class="dashboard-card project-card">
+                                    <div class="project-card-header">
+                                        <div>
+                                            <div class="text-muted mb-1"><?= h($project['code']) ?></div>
+                                            <h2 class="h5 fw-bold mb-2"><?= h($project['title']) ?></h2>
+                                        </div>
+                                        <span class="status-badge"><?= h(ucfirst((string) $project['status'])) ?></span>
+                                    </div>
+                                    <p class="text-muted mb-3"><?= h($project['description'] ?: 'No description available.') ?></p>
+                                    <div class="project-meta">
+                                        <div>
+                                            <strong>Lecturer</strong>
+                                            <div><?= $lecturerLabel ?></div>
+                                        </div>
+                                        <div>
+                                            <strong>Students</strong>
+                                            <div><?= $studentCountLabel ?></div>
+                                        </div>
+                                        <div>
+                                            <strong>Study Year</strong>
+                                            <div><?= $project['study_year'] !== '' ? h($project['study_year']) : '<span class="text-muted">Not set</span>' ?></div>
+                                        </div>
+                                        <div>
+                                            <strong>Created</strong>
+                                            <div><?= h(date('M j, Y', strtotime((string) $project['created_at']))) ?></div>
+                                        </div>
+                                    </div>
+                                    <?php if (!empty($studentMembers)): ?>
+                                        <div class="project-tags mb-3">
+                                            <?php foreach ($studentMembers as $student): ?>
+                                                <span class="project-tag"><?= h($student['name']) ?><?= $student['matric_no'] ? ' (' . h($student['matric_no']) . ')' : '' ?></span>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    <?php endif; ?>
+                                    <div class="project-actions justify-content-end">
+                                        <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#editProjectModal<?= $project['id'] ?>">
+                                            <i class="bi bi-pencil me-1"></i> Edit
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" type="button" data-bs-toggle="modal" data-bs-target="#deleteProjectModal<?= $project['id'] ?>">
+                                            <i class="bi bi-trash me-1"></i> Delete
+                                        </button>
+                                    </div>
+                                </article>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            </section>
         </div>
     </main>
 </div>

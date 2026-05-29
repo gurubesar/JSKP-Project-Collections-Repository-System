@@ -35,7 +35,7 @@ sudo service postgresql start
 
 Start php
 ```bash
-php -S 0.0.0.0:8000
+php -d upload_max_filesize=50M -d post_max_size=50M -S 0.0.0.0:8000
 ```
 
 Theme: Universiti Teknologi Malaysia colour theme

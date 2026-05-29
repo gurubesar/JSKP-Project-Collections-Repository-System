@@ -3,31 +3,95 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-require_once __DIR__ . '/student_header.php';
+require_once __DIR__ . '/../database/db.php';
 require_once __DIR__ . '/../database/encryption.php';
 
+if (!isset($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'student') {
+    header('Location: ../public/login.php');
+    exit;
+}
+
+$studentId = (int) ($_SESSION['user_id'] ?? 0);
 $projectId = (int) ($_GET['project_id'] ?? 0);
 if ($projectId <= 0) {
     header('Location: student_dashboard.php');
     exit;
 }
 
+function student_project_decrypt(?string $value): string
+{
+    if ($value === null || $value === '') {
+        return '';
+    }
+
+    try {
+        return decryptData($value);
+    } catch (Throwable $error) {
+        return '';
+    }
+}
+
+$title = 'Untitled Project';
+$description = '';
+$category = '';
+$supervisor = '';
+$members = [];
+$files = [];
+$feedbackLog = [];
+$submissionHistory = [];
+$currentStatus = 'pending';
+$latestSubmittedAt = null;
+$projectCode = 'UTM-FYP-' . str_pad((string) $projectId, 4, '0', STR_PAD_LEFT);
+$statusLabels = ['pending' => 'Pending Review', 'approved' => 'Approved', 'rejected' => 'Rejected'];
+$statusClasses = ['pending' => 'status-pending', 'approved' => 'status-approved', 'rejected' => 'status-rejected'];
+
 try {
     $stmt = $db->prepare(
-        "SELECT p.project_id, p.title_encrypted, p.description_encrypted, p.study_year, p.created_at, p.lecturer_id, u.name_encrypted AS lecturer_name
+        "SELECT p.project_id, p.title_encrypted, p.description_encrypted, p.category_encrypted, p.study_year, p.created_at,
+                p.lecturer_id, u.name_encrypted AS lecturer_name,
+                latest.status AS latest_status, latest.submitted_at AS latest_submitted_at
          FROM projects p
          LEFT JOIN users u ON p.lecturer_id = u.user_id
+         LEFT JOIN submissions latest ON latest.submission_id = (
+             SELECT submission_id FROM submissions
+             WHERE project_id = p.project_id
+             ORDER BY submitted_at DESC
+             LIMIT 1
+         )
+         INNER JOIN project_members my_pm
+             ON my_pm.project_id = p.project_id
+            AND my_pm.user_id = ?
          WHERE p.project_id = ?"
     );
-    $stmt->execute([$projectId]);
+    $stmt->execute([$studentId, $projectId]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$row) {
         throw new RuntimeException('Project not found');
     }
 
-    $title = decryptData($row['title_encrypted'] ?? '') ?: 'Untitled Project';
-    $description = decryptData($row['description_encrypted'] ?? '');
-    $supervisor = decryptData($row['lecturer_name'] ?? '');
+    $title = student_project_decrypt($row['title_encrypted'] ?? '') ?: 'Untitled Project';
+    $description = student_project_decrypt($row['description_encrypted'] ?? '');
+    $category = student_project_decrypt($row['category_encrypted'] ?? '');
+    $supervisor = student_project_decrypt($row['lecturer_name'] ?? '');
+    $currentStatus = $row['latest_status'] ?: 'pending';
+    $latestSubmittedAt = $row['latest_submitted_at'] ?? null;
+
+    $memberStmt = $db->prepare(
+        "SELECT u.user_id, u.name_encrypted, u.role AS user_role, pm.role AS project_role
+         FROM project_members pm
+         INNER JOIN users u ON u.user_id = pm.user_id
+         WHERE pm.project_id = ?
+         ORDER BY CASE pm.role WHEN 'lecturer' THEN 0 ELSE 1 END, u.user_id ASC"
+    );
+    $memberStmt->execute([$projectId]);
+    foreach ($memberStmt->fetchAll(PDO::FETCH_ASSOC) as $memberRow) {
+        $memberName = student_project_decrypt($memberRow['name_encrypted'] ?? '') ?: 'Unnamed User';
+        $members[] = [
+            'id' => (int) $memberRow['user_id'],
+            'name' => $memberName,
+            'role' => (string) ($memberRow['project_role'] ?? $memberRow['user_role'] ?? ''),
+        ];
+    }
 
     $fileStmt = $db->prepare(
         "SELECT f.file_id, f.file_name_encrypted, f.file_path_encrypted, f.uploaded_at, u.name_encrypted AS uploader_name, f.uploaded_by
@@ -38,17 +102,51 @@ try {
     );
     $fileStmt->execute([$projectId]);
     $files = $fileStmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $submissionStmt = $db->prepare(
+        "SELECT submission_id, status, submitted_at
+         FROM submissions
+         WHERE project_id = ?
+         ORDER BY submitted_at DESC"
+    );
+    $submissionStmt->execute([$projectId]);
+    $submissionHistory = $submissionStmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $commentStmt = $db->prepare(
+        "SELECT c.comment_id, c.content_encrypted, c.created_at, u.name_encrypted AS author_name, u.role AS author_role
+         FROM comments c
+         LEFT JOIN users u ON u.user_id = c.user_id
+         WHERE c.project_id = ?
+         ORDER BY c.created_at DESC, c.comment_id DESC"
+    );
+    $commentStmt->execute([$projectId]);
+    foreach ($commentStmt->fetchAll(PDO::FETCH_ASSOC) as $commentRow) {
+        $comment = student_project_decrypt($commentRow['content_encrypted'] ?? '');
+        if ($comment === '' || str_starts_with($comment, '__marks__') || ($commentRow['author_role'] ?? '') !== 'lecturer') {
+            continue;
+        }
+
+        $feedbackLog[] = [
+            'comment' => $comment,
+            'created_at' => $commentRow['created_at'] ?? '',
+            'author' => student_project_decrypt($commentRow['author_name'] ?? '') ?: 'Lecturer',
+        ];
+    }
 } catch (Throwable $e) {
-    $files = [];
+    $_SESSION['student_flash'] = 'Error: ' . $e->getMessage();
+    $_SESSION['student_flash_type'] = 'danger';
+    header('Location: student_projects.php');
+    exit;
 }
 
 $flash = $_SESSION['student_flash'] ?? '';
 $flashType = $_SESSION['student_flash_type'] ?? 'success';
 unset($_SESSION['student_flash'], $_SESSION['student_flash_type']);
+
+require_once __DIR__ . '/student_header.php';
 ?>
 
-<main>
-    <div class="main-content">
+<section>
         <?php if ($flash): ?>
             <div class="alert alert-<?= htmlspecialchars($flashType) ?> alert-dismissible fade show" role="alert">
                 <?= htmlspecialchars($flash) ?>
@@ -56,6 +154,91 @@ unset($_SESSION['student_flash'], $_SESSION['student_flash_type']);
             </div>
         <?php endif; ?>
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+        <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-4">
+            <div>
+                <div class="d-flex align-items-center gap-2 flex-wrap mb-2">
+                    <h1 class="h3 fw-bold mb-0"><?= htmlspecialchars($title) ?></h1>
+                    <span class="project-badge <?= htmlspecialchars($statusClasses[$currentStatus] ?? 'status-pending') ?>">
+                        <?= htmlspecialchars($statusLabels[$currentStatus] ?? ucfirst($currentStatus)) ?>
+                    </span>
+                </div>
+                <p class="text-muted mb-0">Project Code: <?= htmlspecialchars($projectCode) ?></p>
+                <p class="text-muted mb-0">Category: <?= htmlspecialchars($category ?: 'Not set') ?></p>
+                <?php if ($latestSubmittedAt): ?>
+                    <p class="text-muted mb-0">Latest submission: <?= htmlspecialchars(date('d/m/Y H:i', strtotime((string) $latestSubmittedAt))) ?></p>
+                <?php endif; ?>
+            </div>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#detailsBox">Edit Details</button>
+                <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#generateProposalModal">Generate Proposal</button>
+                <button type="button" class="btn btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#uploadBox">Upload File</button>
+            </div>
+        </div>
+
+        <div id="detailsBox" class="collapse mb-4">
+            <form action="student_actions.php?action=save_project_details&project_id=<?= $projectId ?>" method="post" class="p-3 rounded border bg-white">
+                <div class="row g-3">
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="projectTitle">Project title</label>
+                        <input id="projectTitle" type="text" name="project_title" class="form-control" value="<?= htmlspecialchars($title) ?>" maxlength="160" required>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="projectCategory">Category</label>
+                        <input id="projectCategory" type="text" name="project_category" class="form-control" value="<?= htmlspecialchars($category) ?>" maxlength="80" placeholder="e.g. Web Application">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="projectDescription">Description</label>
+                        <textarea id="projectDescription" name="project_description" class="form-control" rows="4" maxlength="4000"><?= htmlspecialchars($description) ?></textarea>
+                    </div>
+                    <div class="col-12">
+                        <button class="btn btn-primary" type="submit">Save Details</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div class="p-3 rounded border bg-white mb-4">
+            <div class="text-muted small mb-1">Project Description</div>
+            <div><?= $description !== '' ? nl2br(htmlspecialchars($description)) : '<span class="text-muted">No project description has been added yet.</span>' ?></div>
+        </div>
+
+        <div class="row g-3 mb-4">
+            <div class="col-12 col-lg-4">
+                <div class="p-3 rounded border bg-white h-100">
+                    <div class="text-muted small">Supervisor</div>
+                    <div class="fw-bold"><?= htmlspecialchars($supervisor ?: 'No supervisor assigned') ?></div>
+                </div>
+            </div>
+            <div class="col-12 col-lg-8">
+                <div class="p-3 rounded border bg-white h-100">
+                    <div class="text-muted small mb-2">Project Members</div>
+                    <?php if (empty($members)): ?>
+                        <div class="text-muted">No members found.</div>
+                    <?php else: ?>
+                        <div class="d-flex flex-wrap gap-2">
+                            <?php foreach ($members as $member): ?>
+                                <span class="badge rounded-pill text-bg-light border px-3 py-2">
+                                    <?= htmlspecialchars($member['name']) ?>
+                                    <span class="text-muted ms-1"><?= htmlspecialchars(ucfirst($member['role'])) ?></span>
+                                </span>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+
+        <div id="uploadBox" class="collapse">
+            <form action="student_actions.php?action=upload_file&project_id=<?= $projectId ?>" method="post" enctype="multipart/form-data">
+                <div class="mb-3">
+                    <label class="form-label">Select project file</label>
+                    <input type="file" name="project_file" class="form-control" accept=".pdf,.doc,.docx,.ppt,.pptx,.zip" required>
+                    <div class="form-text">Allowed formats: PDF, Word, PowerPoint, or ZIP.</div>
+=======
+>>>>>>> 243fc3d
         <?php $fileCount = count($files); ?>
         <div class="hero-panel mb-4">
             <div class="row align-items-center gx-4">
@@ -68,6 +251,10 @@ unset($_SESSION['student_flash'], $_SESSION['student_flash_type']);
                         <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#generateProposalModal">Generate Proposal</button>
                         <button class="btn btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#uploadBox">Upload File</button>
                     </div>
+<<<<<<< HEAD
+=======
+>>>>>>> e28952c (update UI in student project, lect dashbaord/proj)
+>>>>>>> 243fc3d
                 </div>
                 <div class="col-lg-4 mt-4 mt-lg-0">
                     <div class="card border-utm rounded-4 p-4 shadow-sm">
@@ -130,6 +317,26 @@ unset($_SESSION['student_flash'], $_SESSION['student_flash_type']);
                         // ignore
                     }
                 ?>
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong><?= htmlspecialchars($fileName ?: 'File') ?></strong>
+                            <div class="small text-muted">Uploaded: <?= htmlspecialchars($file['uploaded_at'] ?? '') ?> by <?= htmlspecialchars(student_project_decrypt($file['uploader_name'] ?? '') ?: '') ?></div>
+                        </div>
+                        <div>
+                            <?php if ($filePath): ?>
+                                <a href="<?= htmlspecialchars($filePath) ?>" class="btn btn-sm btn-outline-secondary me-1" download>Download</a>
+                            <?php endif; ?>
+                            <?php if ((int) ($file['uploaded_by'] ?? 0) === (int) ($_SESSION['user_id'] ?? 0)): ?>
+                                <form action="student_actions.php?action=delete_file&project_id=<?= $projectId ?>" method="post" class="d-inline">
+                                    <input type="hidden" name="file_id" value="<?= (int) $file['file_id'] ?>">
+                                    <button class="btn btn-sm btn-danger" type="submit" onclick="return confirm('Delete this file?')">Delete</button>
+                                </form>
+                            <?php endif; ?>
+=======
+>>>>>>> 243fc3d
                     <div class="col-12 col-md-6">
                         <div class="card border-utm rounded-4 p-3 shadow-sm h-100">
                             <div class="d-flex align-items-start gap-3 mb-3">
@@ -158,14 +365,65 @@ unset($_SESSION['student_flash'], $_SESSION['student_flash_type']);
                                     </button>
                                 <?php endif; ?>
                             </div>
+<<<<<<< HEAD
+=======
+>>>>>>> e28952c (update UI in student project, lect dashbaord/proj)
+>>>>>>> 243fc3d
                         </div>
                     </div>
                 <?php endforeach; ?>
             </div>
         <?php endif; ?>
 
-    </div>
+        <div class="row g-4 mt-2">
+            <div class="col-12 col-lg-5">
+                <h4>Review Status</h4>
+                <div class="list-group">
+                    <?php if (empty($submissionHistory)): ?>
+                        <div class="list-group-item text-muted">No submissions yet.</div>
+                    <?php else: ?>
+                        <?php foreach ($submissionHistory as $submission): ?>
+                            <?php $status = (string) ($submission['status'] ?? 'pending'); ?>
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between gap-2 flex-wrap">
+                                    <strong><?= htmlspecialchars($statusLabels[$status] ?? ucfirst($status)) ?></strong>
+                                    <span class="project-badge <?= htmlspecialchars($statusClasses[$status] ?? 'status-pending') ?>">
+                                        <?= htmlspecialchars(ucfirst($status)) ?>
+                                    </span>
+                                </div>
+                                <div class="small text-muted">
+                                    <?= !empty($submission['submitted_at']) ? htmlspecialchars(date('d/m/Y H:i', strtotime((string) $submission['submitted_at']))) : 'No date available' ?>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <div class="col-12 col-lg-7">
+                <h4>Lecturer Comments</h4>
+                <div class="list-group">
+                    <?php if (empty($feedbackLog)): ?>
+                        <div class="list-group-item text-muted">No lecturer comments yet.</div>
+                    <?php else: ?>
+                        <?php foreach ($feedbackLog as $entry): ?>
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between gap-2 flex-wrap mb-1">
+                                    <strong><?= htmlspecialchars($entry['author']) ?></strong>
+                                    <span class="small text-muted">
+                                        <?= !empty($entry['created_at']) ? htmlspecialchars(date('d/m/Y H:i', strtotime((string) $entry['created_at']))) : '' ?>
+                                    </span>
+                                </div>
+                                <div><?= nl2br(htmlspecialchars($entry['comment'])) ?></div>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+
+</section>
 </main>
+</div>
 
 <!-- Generate Proposal Modal -->
 <div class="modal fade" id="generateProposalModal" tabindex="-1" aria-hidden="true">

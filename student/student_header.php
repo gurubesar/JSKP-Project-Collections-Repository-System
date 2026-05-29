@@ -1,5 +1,7 @@
 <?php
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'student') {
     header('Location: ../public/login.php');
@@ -33,7 +35,7 @@ $studentName = trim((string) ($_SESSION['user_name'] ?? 'Student'));
 $projects = [];
 try {
     $stmt = $db->prepare(
-        "SELECT p.project_id, p.title_encrypted, p.description_encrypted, p.study_year, p.created_at,
+        "SELECT p.project_id, p.title_encrypted, p.description_encrypted, p.category_encrypted, p.study_year, p.created_at,
                 u.name_encrypted AS lecturer_name,
                 (SELECT s.status FROM submissions s WHERE s.project_id = p.project_id ORDER BY s.submitted_at DESC LIMIT 1) AS submission_status,
                 (SELECT s.submitted_at FROM submissions s WHERE s.project_id = p.project_id ORDER BY s.submitted_at DESC LIMIT 1) AS submitted_at
@@ -434,6 +436,16 @@ $statusProgress = static function (string $status): int {
         .status-pending { background: rgba(255, 193, 7, 0.15); color: #a16a15; }
         .status-rejected { background: rgba(244, 67, 54, 0.12); color: #a1271d; }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+        .project-meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 14px;
+            color: var(--student-muted);
+=======
+>>>>>>> 243fc3d
         .project-supervisor {
             display: flex;
             align-items: center;
@@ -443,6 +455,10 @@ $statusProgress = static function (string $status): int {
             border-radius: 12px;
             color: var(--student-text);
             font-size: 0.95rem;
+<<<<<<< HEAD
+=======
+>>>>>>> e28952c (update UI in student project, lect dashbaord/proj)
+>>>>>>> 243fc3d
         }
 
         .project-supervisor i {

@@ -144,42 +144,69 @@ $statusLabels = ['pending' => 'Pending', 'approved' => 'Approved', 'rejected' =>
                                 $searchText = strtolower($project['title'] . ' ' . implode(' ', $studentNames));
                                 $submittedAt = $project['submitted_at'] ? date('d/m/Y', strtotime((string) $project['submitted_at'])) : 'No data available';
                             ?>
-                            <div class="col-12 col-lg-6 col-xxl-4 project-item"
+                            <div class="col-12 project-item"
                                  data-status="<?= e($project['status']) ?>"
                                  data-year="<?= e($project['study_year']) ?>"
                                  data-search="<?= e($searchText) ?>">
                                 <article class="project-card">
-                                    <div class="d-flex align-items-start justify-content-between gap-3 mb-3">
-                                        <span class="status-badge status-<?= e($project['status']) ?>"><?= e($statusLabels[$project['status']] ?? $project['status']) ?></span>
-                                        <small class="text-muted"><?= e($project['code']) ?></small>
-                                    </div>
+                                    <div class="project-card-body">
+                                        <div class="project-card-details">
+                                            <div class="project-card-top">
+                                                <div class="project-card-top-row d-flex align-items-center justify-content-between flex-wrap gap-3">
+                                                    <div class="project-labels">
+                                                        <span class="status-badge status-<?= e($project['status']) ?>"><?= e($statusLabels[$project['status']] ?? $project['status']) ?></span>
+                                                        <span class="project-code"><?= e($project['code']) ?></span>
+                                                    </div>
+                                                </div>
 
-                                    <h2 class="project-title mb-2"><?= e($project['title']) ?></h2>
-                                    <div class="student-list mb-3">
-                                        <strong><?= e(count($studentNames)) ?> Student<?= count($studentNames) === 1 ? '' : 's' ?></strong>
-                                        <?php if ($studentNames): ?>
-                                            <?php foreach ($studentNames as $index => $studentName): ?>
-                                                <div><?= e($index + 1) ?>. <?= e($studentName) ?></div>
-                                            <?php endforeach; ?>
-                                        <?php else: ?>
-                                            <div>No student information available</div>
-                                        <?php endif; ?>
-                                    </div>
+                                                <div>
+                                                    <h2 class="project-title mb-2"><?= e($project['title']) ?></h2>
+                                                    <div class="project-stats">
+                                                        <span><?= e(count($studentNames)) ?> Student<?= count($studentNames) === 1 ? '' : 's' ?></span>
+                                                        <span class="ms-3">Study Year: <?= $project['study_year'] !== '' ? e($project['study_year']) : 'N/A' ?></span>
+                                                    </div>
+                                                </div>
+                                            </div>
 
-                                    <div class="meta-line">Submission Date: <?= e($submittedAt) ?></div>
-                                    <div class="meta-line">Study Year: <?= $project['study_year'] !== '' ? e($project['study_year']) : 'No data available' ?></div>
-                                    <div class="meta-line mb-3">Proposal Files: <?= e(count($project['files'])) ?></div>
+                                            <div class="project-meta">
+                                                <div class="meta-line">Submission Date: <?= e($submittedAt) ?></div>
+                                                <div class="meta-line">Proposal Files: <?= e(count($project['files'])) ?></div>
+                                            </div>
 
-                                    <div class="action-row">
-                                        <?php if ($project['files']): ?>
-                                            <?php foreach ($project['files'] as $file): ?>
-                                                <a class="btn btn-review btn-approve mb-2" href="<?= e($file['path']) ?>" target="_blank" download="<?= e($file['name']) ?>">
-                                                    <?= e(pathinfo($file['name'], PATHINFO_EXTENSION) === 'doc' ? 'Download Proposal' : 'Download File') ?>
-                                                </a>
-                                            <?php endforeach; ?>
-                                        <?php else: ?>
-                                            <span class="text-muted">No uploaded files found.</span>
-                                        <?php endif; ?>
+                                            <div class="student-list">
+                                                <?php if ($studentNames): ?>
+                                                    <?php foreach ($studentNames as $index => $studentName): ?>
+                                                        <div><?= e($index + 1) ?>. <?= e($studentName) ?></div>
+                                                    <?php endforeach; ?>
+                                                <?php else: ?>
+                                                    <div class="text-muted">No student information available</div>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
+
+                                        <div class="file-section">
+                                            <div class="file-section-header">
+                                                <strong>Uploaded files</strong>
+                                                <span class="file-count"><?= e(count($project['files'])) ?> item<?= count($project['files']) === 1 ? '' : 's' ?></span>
+                                            </div>
+                                            <?php if ($project['files']): ?>
+                                                <div class="file-list">
+                                                    <?php foreach ($project['files'] as $file): ?>
+                                                        <div class="file-item">
+                                                            <div class="file-details">
+                                                                <div class="file-name"><?= e($file['name']) ?></div>
+                                                                <div class="file-meta">Uploaded: <?= e($file['uploaded_at'] ?? 'Unknown') ?></div>
+                                                            </div>
+                                                            <a class="btn btn-download" href="<?= e($file['path']) ?>" target="_blank" download="<?= e($file['name']) ?>">
+                                                                Download
+                                                            </a>
+                                                        </div>
+                                                    <?php endforeach; ?>
+                                                </div>
+                                            <?php else: ?>
+                                                <div class="text-muted">No uploaded files found.</div>
+                                            <?php endif; ?>
+                                        </div>
                                     </div>
                                 </article>
                             </div>

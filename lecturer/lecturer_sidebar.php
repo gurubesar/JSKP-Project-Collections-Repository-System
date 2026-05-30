@@ -31,14 +31,4 @@
         </a>
     </nav>
 
-    <div class="sidebar-footer">
-        <div class="d-flex align-items-center gap-2 mb-2">
-            <div class="avatar"><?= e($lecturerInitials) ?></div>
-            <div class="min-w-0">
-                <div class="fw-bold text-truncate"><?= e($lecturerName) ?></div>
-                <small class="text-muted">Lecturer</small>
-            </div>
-        </div>
-        <a class="text-muted small" href="../public/logout.php">Logout</a>
-    </div>
 </aside>

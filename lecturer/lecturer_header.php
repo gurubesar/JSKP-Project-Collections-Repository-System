@@ -310,12 +310,6 @@ try {
             color: #271700;
         }
 
-        .sidebar-footer {
-            margin-top: auto;
-            padding: 16px 14px 22px;
-            border-top: 1px solid rgba(128, 0, 32, 0.12);
-        }
-
         .lecturer-main {
             min-width: 0;
         }
@@ -344,6 +338,17 @@ try {
             display: inline-grid;
             place-items: center;
             color: var(--lecturer-text);
+            position: relative;
+        }
+
+        .icon-button.notification-active {
+            background: rgba(255, 243, 205, 0.9);
+            border-color: rgba(254, 193, 7, 0.6);
+            color: #7a4f00;
+        }
+
+        .icon-button.notification-active .bi-bell {
+            color: #7a4f00;
         }
 
         .profile-chip {
@@ -418,24 +423,60 @@ try {
         }
 
         .toolbar {
-            background: #fff;
-            border: 1px solid var(--lecturer-border);
-            border-radius: 18px;
-            padding: 14px;
-            box-shadow: var(--lecturer-shadow);
+            background: rgba(255, 255, 255, 0.96);
+            border: none;
+            border-radius: 28px;
+            padding: 18px 20px;
+            box-shadow: 0 26px 60px rgba(28, 39, 60, 0.08);
         }
 
         .search-control {
-            min-height: 44px;
-            border-radius: 12px;
-            border: 1px solid var(--lecturer-border);
+            min-height: 52px;
+            border-radius: 22px;
+            border: 1px solid rgba(128, 0, 32, 0.12);
+            background: #fff;
+            box-shadow: inset 0 1px 2px rgba(28, 39, 60, 0.04);
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .search-control:focus,
+        .search-control:active {
+            border-color: rgba(128, 0, 32, 0.28);
+            box-shadow: inset 0 1px 3px rgba(28, 39, 60, 0.08);
+            outline: none;
+        }
+
+        .input-group .search-control:not(:first-child) {
+            border-top-left-radius: 0;
+            border-bottom-left-radius: 0;
+        }
+
+        .input-group-text.search-control {
+            border-radius: 22px 0 0 22px;
+            border-right: none;
+            background: #fff;
+        }
+
+        .project-item {
+            display: block;
         }
 
         .project-card {
-            display: flex;
-            flex-direction: column;
-            min-height: 272px;
-            padding: 20px;
+            position: relative;
+            width: 100%;
+            display: block;
+            min-height: 340px;
+            padding: 24px;
+        }
+
+        .project-card-body {
+            display: grid;
+            gap: 24px;
+        }
+
+        .project-card-details {
+            display: grid;
+            gap: 18px;
         }
 
         .status-badge {
@@ -466,27 +507,175 @@ try {
 
         .project-title {
             color: var(--lecturer-maroon);
-            font-size: 1.05rem;
+            font-size: 1.15rem;
             font-weight: 800;
-            line-height: 1.35;
+            line-height: 1.2;
+        }
+
+        .project-code {
+            color: var(--lecturer-muted);
+            font-size: 0.88rem;
+            letter-spacing: 0.02em;
+        }
+
+        .project-card-top {
+            display: grid;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .project-card-top .project-labels {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .project-card-top .project-stats {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 18px;
+            color: var(--lecturer-muted);
+            font-size: 0.88rem;
+        }
+
+        .project-card-body {
+            display: grid;
+            gap: 24px;
+        }
+
+        .project-card-details {
+            display: grid;
+            gap: 18px;
+        }
+
+        .project-meta {
+            display: grid;
+            gap: 8px;
+            margin-bottom: 18px;
         }
 
         .student-list {
+            display: grid;
+            gap: 6px;
             color: var(--lecturer-text);
-            line-height: 1.55;
+            line-height: 1.4;
+            font-size: 0.95rem;
+            margin-bottom: 18px;
         }
 
-        .meta-line {
-            color: var(--lecturer-muted);
-            font-size: 0.9rem;
+        .file-section {
+            border-top: 1px solid rgba(128, 0, 32, 0.08);
+            padding-top: 18px;
+            margin-top: 0;
         }
 
-        .action-row {
+        .file-section-header {
             display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            margin-top: auto;
-            padding-top: 16px;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .file-section-header strong {
+            font-size: 0.95rem;
+            color: var(--lecturer-maroon);
+        }
+
+        .file-count {
+            color: var(--lecturer-muted);
+            font-size: 0.85rem;
+        }
+
+        .file-list {
+            display: grid;
+            gap: 12px;
+            max-height: 172px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            width: 100%;
+            padding: 14px 16px;
+            background: #fbfbfd;
+            border: 1px solid rgba(128, 0, 32, 0.08);
+            border-radius: 14px;
+        }
+
+        .file-details {
+            min-width: 0;
+        }
+
+        .file-name {
+            font-weight: 700;
+            color: var(--lecturer-maroon);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .file-meta {
+            color: var(--lecturer-muted);
+            font-size: 0.85rem;
+        }
+
+        .btn-download {
+            min-width: 108px;
+            height: 38px;
+            border-radius: 10px;
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: #fff;
+            background: var(--lecturer-maroon);
+            border: 1px solid var(--lecturer-maroon);
+        }
+
+        .btn-download:hover {
+            background: #650018;
+            border-color: #650018;
+        }
+
+        @media (min-width: 992px) {
+            .project-card-body {
+                grid-template-columns: 1.28fr 0.72fr;
+                align-items: start;
+            }
+
+            .file-section {
+                border-top: none;
+                padding-top: 0;
+                border-left: 1px solid rgba(128, 0, 32, 0.08);
+                padding-left: 24px;
+                margin-top: 0;
+            }
+
+            .file-list {
+                max-height: 280px;
+            }
+        }
+
+        @media (min-width: 1200px) {
+            .project-card-body {
+                grid-template-columns: 1.15fr 0.85fr;
+                align-items: start;
+            }
+
+            .file-section {
+                border-top: none;
+                padding-top: 0;
+                border-left: 1px solid rgba(128, 0, 32, 0.08);
+                padding-left: 24px;
+            }
+
+            .file-list {
+                max-height: 280px;
+            }
         }
 
         .btn-review {
@@ -578,7 +767,8 @@ try {
             padding: 14px;
             background: #f8f9fc;
             border: 1px solid var(--lecturer-border);
-            border-radius: 12px;
+            border-bottom: none;
+            border-radius: 12px 12px 0 0;
         }
 
         .files-section h6 {
@@ -588,15 +778,25 @@ try {
             margin-bottom: 10px;
         }
 
+        .action-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 0;
+            padding-top: 18px;
+        }
+
         .file-item {
             display: flex;
             align-items: center;
-            gap: 10px;
-            padding: 8px 10px;
-            margin-bottom: 6px;
+            justify-content: space-between;
+            gap: 16px;
+            width: 100%;
+            padding: 14px 16px;
+            margin-bottom: 10px;
             background: #fff;
             border: 1px solid var(--lecturer-border);
-            border-radius: 9px;
+            border-radius: 14px;
         }
 
         .file-item:last-child {
@@ -891,34 +1091,15 @@ try {
                 <strong><?= e($lecturerName) ?></strong>
             </div>
             <div class="d-flex align-items-center gap-2 gap-sm-3 ms-auto">
-                <div class="dropdown">
-                    <button class="icon-button dropdown-toggle position-relative" type="button" id="notificationDropdown" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Notifications">
-                        <i class="bi bi-bell"></i>
-                        <?php if ($unreadNotificationCount > 0): ?>
-                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                                <?= e($unreadNotificationCount) ?>
-                                <span class="visually-hidden">unread notifications</span>
-                            </span>
-                        <?php endif; ?>
-                    </button>
-                    <ul class="dropdown-menu dropdown-menu-end notification-menu shadow" aria-labelledby="notificationDropdown">
-                        <li class="px-3 py-2 d-flex justify-content-between align-items-center border-bottom">
-                            <strong>Notifications</strong>
-                            <a href="../lecturer/lecturer_notifications.php?action=mark_all_read&return=<?= $notificationReturn ?>" class="small">Mark all read</a>
-                        </li>
-                        <?php if (count($lecturerNotifications) === 0): ?>
-                            <li><span class="dropdown-item text-muted">No notifications yet.</span></li>
-                        <?php endif; ?>
-                        <?php foreach ($lecturerNotifications as $notification): ?>
-                            <li>
-                                <a class="dropdown-item d-flex flex-column <?= $notification['is_read'] ? '' : 'fw-bold' ?>" href="../lecturer/lecturer_notifications.php?action=mark_read&id=<?= e($notification['notification_id']) ?>&return=<?= $notificationReturn ?>">
-                                    <span class="mb-1"><?= e($notification['message']) ?></span>
-                                    <small class="text-muted"><?= e(date('d M Y H:i', strtotime($notification['created_at']))) ?></small>
-                                </a>
-                            </li>
-                        <?php endforeach; ?>
-                    </ul>
-                </div>
+                <a class="icon-button position-relative <?= $unreadNotificationCount > 0 ? 'notification-active' : '' ?>" href="../lecturer/lecturer_notifications.php" aria-label="Notifications">
+                    <i class="bi bi-bell"></i>
+                    <?php if ($unreadNotificationCount > 0): ?>
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                            <?= e($unreadNotificationCount) ?>
+                            <span class="visually-hidden">unread notifications</span>
+                        </span>
+                    <?php endif; ?>
+                </a>
                 <div class="profile-chip">
                     <div class="avatar"><?= e($lecturerInitials) ?></div>
                     <div class="d-none d-sm-block pe-1">

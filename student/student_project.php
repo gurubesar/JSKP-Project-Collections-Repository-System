@@ -37,6 +37,8 @@ $category = '';
 $supervisor = '';
 $members = [];
 $files = [];
+$processedFiles = [];
+$generatedProposal = null;
 $feedbackLog = [];
 $submissionHistory = [];
 $currentStatus = 'pending';
@@ -103,11 +105,46 @@ try {
     $fileStmt->execute([$projectId]);
     $files = $fileStmt->fetchAll(PDO::FETCH_ASSOC);
 
+    foreach ($files as $fileRow) {
+        $fileName = '';
+        $filePath = '';
+        try {
+            $fileName = student_project_decrypt($fileRow['file_name_encrypted'] ?? '');
+            $filePath = student_project_decrypt($fileRow['file_path_encrypted'] ?? '');
+        } catch (Throwable $error) {
+            // ignore decryption failures
+        }
+
+        $isProposalFile = false;
+        $normalizedFileName = strtolower($fileName);
+        if ($normalizedFileName !== '' && (str_ends_with($normalizedFileName, '.doc') || str_contains($normalizedFileName, 'proposal'))) {
+            $isProposalFile = true;
+        }
+
+        $processedFile = [
+            'file_id' => (int) ($fileRow['file_id'] ?? 0),
+            'file_name' => $fileName,
+            'file_path' => $filePath,
+            'uploaded_at' => $fileRow['uploaded_at'] ?? '',
+            'uploader_name' => student_project_decrypt($fileRow['uploader_name'] ?? ''),
+            'uploaded_by' => (int) ($fileRow['uploaded_by'] ?? 0),
+            'is_proposal' => $isProposalFile,
+        ];
+
+        $processedFiles[] = $processedFile;
+        if ($isProposalFile && $generatedProposal === null) {
+            $generatedProposal = $processedFile;
+        }
+    }
+
+    $files = $processedFiles;
+
     $submissionStmt = $db->prepare(
         "SELECT submission_id, status, submitted_at
          FROM submissions
          WHERE project_id = ?
-         ORDER BY submitted_at DESC"
+         ORDER BY submitted_at DESC
+         LIMIT 1"
     );
     $submissionStmt->execute([$projectId]);
     $submissionHistory = $submissionStmt->fetchAll(PDO::FETCH_ASSOC);
@@ -154,7 +191,7 @@ require_once __DIR__ . '/student_header.php';
             </div>
         <?php endif; ?>
 
-        <?php $fileCount = count($files); ?>
+        <?php $fileCount = count($processedFiles); ?>
         <div class="hero-panel mb-4">
             <div class="row align-items-center gx-4">
                 <div class="col-lg-8">
@@ -212,21 +249,55 @@ require_once __DIR__ . '/student_header.php';
             <span class="badge badge-utm-gold align-self-start">Total files: <?= $fileCount ?></span>
         </div>
 
-        <?php if (empty($files)): ?>
+        <div class="card border-utm rounded-4 p-4 shadow-sm mb-4">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+                <div>
+                    <h3 class="h6 mb-1">Generated Proposal</h3>
+                    <p class="text-muted mb-0">The latest proposal document created for this project.</p>
+                </div>
+                <?php if ($generatedProposal): ?>
+                    <span class="badge badge-utm-gold">Available</span>
+                <?php else: ?>
+                    <span class="badge badge-secondary">Not generated</span>
+                <?php endif; ?>
+            </div>
+            <?php if ($generatedProposal): ?>
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                    <div>
+                        <strong><?= htmlspecialchars($generatedProposal['file_name'] ?: 'Generated Proposal') ?></strong>
+                        <div class="text-muted small">Uploaded: <?= htmlspecialchars($generatedProposal['uploaded_at'] ?: 'Unknown') ?></div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <?php if ($generatedProposal['file_path']): ?>
+                            <a href="<?= htmlspecialchars($generatedProposal['file_path']) ?>" class="btn btn-outline-secondary btn-sm">Download</a>
+                        <?php endif; ?>
+                        <?php if ((int) $generatedProposal['uploaded_by'] === (int) ($_SESSION['user_id'] ?? 0)): ?>
+                            <button
+                                class="btn btn-danger btn-sm"
+                                type="button"
+                                data-file-id="<?= (int) $generatedProposal['file_id'] ?>"
+                                data-file-name="<?= htmlspecialchars($generatedProposal['file_name'] ?: 'Proposal', ENT_QUOTES) ?>"
+                                data-project-id="<?= $projectId ?>"
+                                onclick="openDeleteFileModal(this)">
+                                Delete
+                            </button>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            <?php else: ?>
+                <div class="text-muted">No generated proposal found yet. Use the Generate Proposal button to create one.</div>
+            <?php endif; ?>
+        </div>
+
+        <?php if (empty($processedFiles)): ?>
             <div class="card border-utm rounded-4 p-4 shadow-sm">
                 <p class="mb-0 text-muted">No files uploaded yet. Use the button above to add a proposal or document.</p>
             </div>
         <?php else: ?>
             <div class="row g-3">
                 <?php foreach ($files as $file): 
-                    $fileName = '';
-                    $filePath = '';
-                    try {
-                        $fileName = decryptData($file['file_name_encrypted'] ?? '');
-                        $filePath = decryptData($file['file_path_encrypted'] ?? '');
-                    } catch (Throwable $e) {
-                        // ignore
-                    }
+                    $fileName = $file['file_name'] ?? '';
+                    $filePath = $file['file_path'] ?? '';
                 ?>
                     <div class="col-12 col-md-6">
                         <div class="card border-utm rounded-4 p-3 shadow-sm h-100">
@@ -235,9 +306,14 @@ require_once __DIR__ . '/student_header.php';
                                     <i class="bi bi-file-earmark-text-fill fs-4"></i>
                                 </div>
                                 <div class="flex-grow-1">
-                                    <h3 class="h6 mb-1"><?= htmlspecialchars($fileName ?: 'Untitled Document') ?></h3>
+                                    <div class="d-flex align-items-center gap-2 mb-1">
+                                        <h3 class="h6 mb-0"><?= htmlspecialchars($fileName ?: 'Untitled Document') ?></h3>
+                                        <?php if (!empty($file['is_proposal'])): ?>
+                                            <span class="badge badge-utm-gold py-1 px-2">Proposal</span>
+                                        <?php endif; ?>
+                                    </div>
                                     <p class="mb-1 text-muted">Uploaded: <?= htmlspecialchars($file['uploaded_at'] ?? '') ?></p>
-                                    <p class="mb-0 text-muted">By <?= htmlspecialchars(decryptData($file['uploader_name'] ?? '') ?: 'Student') ?></p>
+                                    <p class="mb-0 text-muted">By <?= htmlspecialchars($file['uploader_name'] ?: 'Student') ?></p>
                                 </div>
                             </div>
                             <div class="d-flex flex-wrap gap-2">

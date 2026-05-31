@@ -24,8 +24,12 @@ function set_flash(string $msg, string $type = 'success'): void
 
 function createNotification(PDO $db, int $recipientId, ?int $senderId, int $projectId, string $message, string $type = 'project_update'): void
 {
-    $stmt = $db->prepare('INSERT INTO notifications (recipient_user_id, sender_user_id, project_id, notification_type, message) VALUES (?, ?, ?, ?, ?)');
-    $stmt->execute([$recipientId, $senderId, $projectId, $type, $message]);
+    try {
+        $stmt = $db->prepare('INSERT INTO notifications (recipient_user_id, sender_user_id, project_id, notification_type, message) VALUES (?, ?, ?, ?, ?)');
+        $stmt->execute([$recipientId, $senderId, $projectId, $type, $message]);
+    } catch (PDOException $e) {
+        // Notifications are optional; ignore failures if the notifications table is missing or unavailable.
+    }
 }
 
 function notifyProjectLecturer(PDO $db, int $projectId, int $studentId, string $message): void

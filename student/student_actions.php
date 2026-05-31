@@ -216,6 +216,28 @@ try {
         exit;
     }
 
+    if ($action === 'post_comment' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        if ($projectId <= 0) throw new RuntimeException('Invalid project');
+        $content = trim((string) ($_POST['comment_content'] ?? ''));
+        if ($content === '') throw new RuntimeException('Comment cannot be empty');
+
+        $encrypted = encryptData($content);
+        $ins = $db->prepare('INSERT INTO comments (project_id, user_id, content_encrypted) VALUES (?, ?, ?)');
+        $ins->execute([$projectId, $studentId, $encrypted]);
+
+        // Notify lecturer about the student reply
+        notifyProjectLecturer(
+            $db,
+            $projectId,
+            $studentId,
+            sprintf('Student %s replied to a comment on project %s.', $_SESSION['user_name'] ?? 'A student', 'UTM-FYP-' . str_pad((string) $projectId, 4, '0', STR_PAD_LEFT))
+        );
+
+        set_flash('Reply posted. Your lecturer will be notified.');
+        header('Location: ../student/student_project.php?project_id=' . $projectId);
+        exit;
+    }
+
     // Unknown action
     header('Location: ../student/student_dashboard.php');
     exit;

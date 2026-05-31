@@ -341,45 +341,75 @@ require_once __DIR__ . '/student_header.php';
         <div class="row g-4 mt-2">
             <div class="col-12 col-lg-5">
                 <h4>Review Status</h4>
-                <div class="list-group">
+                <div class="card border-utm rounded-4 p-3 shadow-sm">
                     <?php if (empty($submissionHistory)): ?>
-                        <div class="list-group-item text-muted">No submissions yet.</div>
-                    <?php else: ?>
-                        <?php foreach ($submissionHistory as $submission): ?>
-                            <?php $status = (string) ($submission['status'] ?? 'pending'); ?>
-                            <div class="list-group-item">
-                                <div class="d-flex justify-content-between gap-2 flex-wrap">
-                                    <strong><?= htmlspecialchars($statusLabels[$status] ?? ucfirst($status)) ?></strong>
-                                    <span class="project-badge <?= htmlspecialchars($statusClasses[$status] ?? 'status-pending') ?>">
-                                        <?= htmlspecialchars(ucfirst($status)) ?>
-                                    </span>
-                                </div>
-                                <div class="small text-muted">
-                                    <?= !empty($submission['submitted_at']) ? htmlspecialchars(date('d/m/Y H:i', strtotime((string) $submission['submitted_at']))) : 'No date available' ?>
-                                </div>
+                        <div class="text-muted">No submissions yet.</div>
+                    <?php else:
+                        $latest = $submissionHistory[0];
+                        $status = (string) ($latest['status'] ?? 'pending');
+                    ?>
+                        <div class="d-flex align-items-center justify-content-between mb-3">
+                            <div>
+                                <div class="small text-muted">Latest Submission</div>
+                                <strong class="h6 mb-0"><?= htmlspecialchars($statusLabels[$status] ?? ucfirst($status)) ?></strong>
+                                <div class="small text-muted"><?= !empty($latest['submitted_at']) ? htmlspecialchars(date('d/m/Y H:i', strtotime((string)$latest['submitted_at']))) : '' ?></div>
                             </div>
-                        <?php endforeach; ?>
+                            <div>
+                                <span class="status-chip <?= htmlspecialchars($statusClasses[$status] ?? 'status-pending') ?>"><?= htmlspecialchars(ucfirst($status)) ?></span>
+                            </div>
+                        </div>
+
+                        <?php if (count($submissionHistory) > 1): ?>
+                            <div class="divider mb-2" style="height:1px;background:rgba(128,0,32,0.06);"></div>
+                            <div class="small text-muted mb-2">History</div>
+                            <ul class="timeline-list">
+                                <?php foreach ($submissionHistory as $submission):
+                                    $s = (string) ($submission['status'] ?? 'pending');
+                                ?>
+                                    <li>
+                                        <span class="timeline-dot <?= htmlspecialchars($statusClasses[$s] ?? 'status-pending') ?>"></span>
+                                        <strong><?= htmlspecialchars($statusLabels[$s] ?? ucfirst($s)) ?></strong>
+                                        <span class="small text-muted"> <?= !empty($submission['submitted_at']) ? htmlspecialchars(date('d/m/Y H:i', strtotime((string)$submission['submitted_at']))) : '' ?></span>
+                                    </li>
+                                <?php endforeach; ?>
+                            </ul>
+                        <?php endif; ?>
                     <?php endif; ?>
                 </div>
             </div>
+
             <div class="col-12 col-lg-7">
                 <h4>Lecturer Comments</h4>
-                <div class="list-group">
-                    <?php if (empty($feedbackLog)): ?>
-                        <div class="list-group-item text-muted">No lecturer comments yet.</div>
-                    <?php else: ?>
+                <?php if (empty($feedbackLog)): ?>
+                    <div class="card border-utm rounded-4 p-3 text-muted">No lecturer comments yet.</div>
+                <?php else: ?>
+                    <div class="comment-stack">
                         <?php foreach ($feedbackLog as $entry): ?>
-                            <div class="list-group-item">
-                                <div class="d-flex justify-content-between gap-2 flex-wrap mb-1">
-                                    <strong><?= htmlspecialchars($entry['author']) ?></strong>
-                                    <span class="small text-muted">
-                                        <?= !empty($entry['created_at']) ? htmlspecialchars(date('d/m/Y H:i', strtotime((string) $entry['created_at']))) : '' ?>
-                                    </span>
+                            <div class="comment-card border-utm rounded-3 p-3 mb-3">
+                                <div class="d-flex gap-3">
+                                    <div class="avatar bg-utm-maroon text-white rounded-circle d-inline-flex align-items-center justify-content-center" style="width:44px;height:44px;font-weight:700;"><?= htmlspecialchars(substr($entry['author'] ?? 'L',0,1)) ?></div>
+                                    <div class="flex-grow-1">
+                                        <div class="d-flex justify-content-between align-items-start mb-1">
+                                            <strong><?= htmlspecialchars($entry['author']) ?></strong>
+                                            <span class="small text-muted"><?= !empty($entry['created_at']) ? htmlspecialchars(date('d/m/Y H:i', strtotime((string) $entry['created_at']))) : '' ?></span>
+                                        </div>
+                                        <div class="mt-2 comment-body"><?= nl2br(htmlspecialchars($entry['comment'])) ?></div>
+                                    </div>
                                 </div>
-                                <div><?= nl2br(htmlspecialchars($entry['comment'])) ?></div>
                             </div>
                         <?php endforeach; ?>
-                    <?php endif; ?>
+                    </div>
+                <?php endif; ?>
+
+                <div class="mt-3">
+                    <form action="student_actions.php?action=post_comment&project_id=<?= $projectId ?>" method="post">
+                        <label class="form-label">Reply to lecturer</label>
+                        <textarea name="comment_content" class="form-control" rows="3" placeholder="Write a polite reply to your lecturer..." required></textarea>
+                        <div class="d-flex justify-content-end mt-2">
+                            <button class="btn btn-outline-secondary btn-sm me-2" type="reset">Clear</button>
+                            <button class="btn btn-utm btn-sm" type="submit">Send Reply</button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>

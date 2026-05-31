@@ -256,3 +256,55 @@ textarea:focus {
   margin: 0;
   color: var(--utm-muted);
 }
+
+/* Review status and comments enhancements */
+.status-chip {
+  display: inline-block;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-weight: 700;
+  color: #fff;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+}
+.status-pending {
+  background: linear-gradient(180deg, #f6c84a, #e6a800);
+  color: #4a2d00;
+}
+.status-approved {
+  background: linear-gradient(180deg, #3ecf8e, #2bb36a);
+}
+.status-rejected {
+  background: linear-gradient(180deg, #ff7a7a, #e14b4b);
+}
+.timeline-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.timeline-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.timeline-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.timeline-dot.status-pending { background: #f6c84a; }
+.timeline-dot.status-approved { background: #2bb36a; }
+.timeline-dot.status-rejected { background: #e14b4b; }
+.comment-card {
+  background: linear-gradient(180deg, var(--utm-surface), rgba(255,255,255,0.94));
+}
+.comment-body {
+  color: var(--utm-dark);
+  line-height: 1.45;
+}
+.avatar {
+  font-size: 1rem;
+}

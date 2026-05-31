@@ -1,0 +1,41 @@
+# Dependencies and vendor libraries
+/vendor/
+composer.lock
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+.env
+.env.local
+.env.*.local
+
+# PHP Error Logs
+error_log
+.php_cs.cache
+
+# Session and temporary files
+/tmp/
+/temp/
+*.tmp
+*.log
+
+# Backup files
+*.backup
+*.bak
+*.old
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Build artifacts
+/build/
+/dist/
+
+# Node modules (if using any frontend build tools)
+/node_modules/
+/public/node_modules/

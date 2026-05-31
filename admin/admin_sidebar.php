@@ -36,7 +36,7 @@
             <i class="bi bi-journal-bookmark-fill"></i>
             <span>Programs</span>
         </a>
-        <a class="sidebar-link" href="#">
+        <a class="sidebar-link<?= basename($_SERVER['PHP_SELF']) === 'report.php' ? ' active' : '' ?>" href="report.php">
             <i class="bi bi-bar-chart-line-fill"></i>
             <span>Reports</span>
         </a>

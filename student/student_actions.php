@@ -22,6 +22,20 @@ function set_flash(string $msg, string $type = 'success'): void
     $_SESSION['student_flash_type'] = $type;
 }
 
+function ensureCommentVisibilityTableExists(PDO $db): void
+{
+    try {
+        $db->exec('CREATE TABLE IF NOT EXISTS comment_visibility (
+            comment_id INTEGER NOT NULL REFERENCES comments(comment_id),
+            user_id INTEGER NOT NULL REFERENCES users(user_id),
+            hidden_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (comment_id, user_id)
+        )');
+    } catch (Throwable $e) {
+        // Ignore if the table cannot be created on this database.
+    }
+}
+
 function createNotification(PDO $db, int $recipientId, ?int $senderId, int $projectId, string $message, string $type = 'project_update'): void
 {
     try {
@@ -86,7 +100,7 @@ try {
         $stmt2->execute([$projectId, 'pending']);
 
         set_flash('File uploaded successfully.');
-        header('Location: ../student/student_project.php?project_id=' . $projectId);
+        header('Location: ../student/student_project.php?project_id=' . $projectId . '#uploadBox');
         exit;
     }
 
@@ -216,6 +230,44 @@ try {
         exit;
     }
 
+    if ($action === 'delete_comment' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        if ($projectId <= 0) throw new RuntimeException('Invalid project');
+        $commentId = (int) ($_POST['comment_id'] ?? 0);
+        $deleteMode = trim((string) ($_POST['delete_mode'] ?? 'me'));
+        if ($commentId <= 0) throw new RuntimeException('Invalid comment');
+
+        $stmt = $db->prepare('SELECT project_id, user_id FROM comments WHERE comment_id = ? LIMIT 1');
+        $stmt->execute([$commentId]);
+        $commentRow = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$commentRow || (int) $commentRow['project_id'] !== $projectId) {
+            throw new RuntimeException('Comment not found');
+        }
+
+        if ($deleteMode === 'all') {
+            if ((int) $commentRow['user_id'] !== $studentId) {
+                throw new RuntimeException('Only the message author may delete for all');
+            }
+
+            $del = $db->prepare('DELETE FROM comments WHERE comment_id = ?');
+            $del->execute([$commentId]);
+            $delVis = $db->prepare('DELETE FROM comment_visibility WHERE comment_id = ?');
+            $delVis->execute([$commentId]);
+            set_flash('Message deleted for all.');
+        } else {
+            ensureCommentVisibilityTableExists($db);
+            if ($db->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql') {
+                $upsert = $db->prepare('INSERT INTO comment_visibility (comment_id, user_id, hidden_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT (comment_id, user_id) DO UPDATE SET hidden_at = CURRENT_TIMESTAMP');
+            } else {
+                $upsert = $db->prepare('INSERT OR REPLACE INTO comment_visibility (comment_id, user_id, hidden_at) VALUES (?, ?, CURRENT_TIMESTAMP)');
+            }
+            $upsert->execute([$commentId, $studentId]);
+            set_flash('Message deleted for you.');
+        }
+
+        header('Location: ../student/student_project.php?project_id=' . $projectId . '#feedbackSection');
+        exit;
+    }
+
     if ($action === 'post_comment' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($projectId <= 0) throw new RuntimeException('Invalid project');
         $content = trim((string) ($_POST['comment_content'] ?? ''));
@@ -234,7 +286,7 @@ try {
         );
 
         set_flash('Reply posted. Your lecturer will be notified.');
-        header('Location: ../student/student_project.php?project_id=' . $projectId);
+        header('Location: ../student/student_project.php?project_id=' . $projectId . '#feedbackSection');
         exit;
     }
 

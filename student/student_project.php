@@ -150,24 +150,55 @@ try {
     $submissionHistory = $submissionStmt->fetchAll(PDO::FETCH_ASSOC);
 
     $commentStmt = $db->prepare(
-        "SELECT c.comment_id, c.content_encrypted, c.created_at, u.name_encrypted AS author_name, u.role AS author_role
+        "SELECT c.comment_id, c.user_id AS author_id, c.content_encrypted, c.created_at, u.name_encrypted AS author_name, u.role AS author_role
          FROM comments c
          LEFT JOIN users u ON u.user_id = c.user_id
          WHERE c.project_id = ?
-         ORDER BY c.created_at DESC, c.comment_id DESC"
+         ORDER BY c.created_at ASC, c.comment_id ASC"
     );
     $commentStmt->execute([$projectId]);
+
+    $currentLecturerIndex = null;
     foreach ($commentStmt->fetchAll(PDO::FETCH_ASSOC) as $commentRow) {
         $comment = student_project_decrypt($commentRow['content_encrypted'] ?? '');
-        if ($comment === '' || str_starts_with($comment, '__marks__') || ($commentRow['author_role'] ?? '') !== 'lecturer') {
+        if ($comment === '' || str_starts_with($comment, '__marks__')) {
             continue;
         }
 
-        $feedbackLog[] = [
+        $authorName = student_project_decrypt($commentRow['author_name'] ?? '');
+        $authorRole = $commentRow['author_role'] ?? '';
+        if ((int) ($commentRow['author_id'] ?? 0) === $studentId) {
+            $authorName = 'You';
+            $authorRole = 'student';
+        } elseif ($authorName === '') {
+            $authorName = $authorRole === 'lecturer' ? 'Lecturer' : 'Student';
+        }
+
+        $commentEntry = [
+            'comment_id' => (int) ($commentRow['comment_id'] ?? 0),
             'comment' => $comment,
             'created_at' => $commentRow['created_at'] ?? '',
-            'author' => student_project_decrypt($commentRow['author_name'] ?? '') ?: 'Lecturer',
+            'author' => $authorName,
+            'author_role' => $authorRole,
+            'author_id' => (int) ($commentRow['author_id'] ?? 0),
         ];
+
+        if ($authorRole === 'lecturer') {
+            $feedbackLog[] = [
+                'base' => $commentEntry,
+                'replies' => [],
+            ];
+            $currentLecturerIndex = count($feedbackLog) - 1;
+        } else {
+            if ($currentLecturerIndex !== null) {
+                $feedbackLog[$currentLecturerIndex]['replies'][] = $commentEntry;
+            } else {
+                $feedbackLog[] = [
+                    'base' => $commentEntry,
+                    'replies' => [],
+                ];
+            }
+        }
     }
 } catch (Throwable $e) {
     $_SESSION['student_flash'] = 'Error: ' . $e->getMessage();
@@ -185,9 +216,9 @@ require_once __DIR__ . '/student_header.php';
 
 <section>
         <?php if ($flash): ?>
-            <div class="alert alert-<?= htmlspecialchars($flashType) ?> alert-dismissible fade show" role="alert">
-                <?= htmlspecialchars($flash) ?>
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            <div id="pageToast" class="toast-box <?= htmlspecialchars($flashType) ?>" role="alert" aria-live="polite" aria-atomic="true">
+                <div class="toast-text"><?= htmlspecialchars($flash) ?></div>
+                <button type="button" class="btn-close toast-close" aria-label="Close" onclick="hidePageToast()"></button>
             </div>
         <?php endif; ?>
 
@@ -200,8 +231,8 @@ require_once __DIR__ . '/student_header.php';
                     <p class="text-muted mb-3">Project Code: <span class="fw-semibold"><?= 'UTM-FYP-' . str_pad((string) $projectId, 4, '0', STR_PAD_LEFT) ?></span></p>
                     <p class="mb-4"><?= nl2br(htmlspecialchars($description ?: 'No project description provided yet.')) ?></p>
                     <div class="d-flex flex-wrap gap-2">
-                        <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#generateProposalModal">Generate Proposal</button>
-                        <button class="btn btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#uploadBox">Upload File</button>
+                        <button class="btn btn-utm" data-bs-toggle="modal" data-bs-target="#generateProposalModal">Generate Proposal</button>
+                        <button class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#uploadBox">Upload File</button>
                     </div>
                 </div>
                 <div class="col-lg-4 mt-4 mt-lg-0">
@@ -299,38 +330,44 @@ require_once __DIR__ . '/student_header.php';
                     $fileName = $file['file_name'] ?? '';
                     $filePath = $file['file_path'] ?? '';
                 ?>
-                    <div class="col-12 col-md-6">
+                    <div class="col-12">
                         <div class="card border-utm rounded-4 p-3 shadow-sm h-100">
-                            <div class="d-flex align-items-start gap-3 mb-3">
-                                <div class="bg-utm-maroon rounded-4 p-3 text-white d-flex align-items-center justify-content-center" style="width:56px;height:56px;">
-                                    <i class="bi bi-file-earmark-text-fill fs-4"></i>
+                            <div class="row gx-3 gy-2 align-items-center">
+                                <div class="col-auto">
+                                    <div class="bg-utm-maroon rounded-4 p-3 text-white d-flex align-items-center justify-content-center" style="width:56px;height:56px;">
+                                        <i class="bi bi-file-earmark-text-fill fs-4"></i>
+                                    </div>
                                 </div>
-                                <div class="flex-grow-1">
-                                    <div class="d-flex align-items-center gap-2 mb-1">
-                                        <h3 class="h6 mb-0"><?= htmlspecialchars($fileName ?: 'Untitled Document') ?></h3>
+                                <div class="col">
+                                    <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                                        <h3 class="h6 mb-0 text-truncate"><?= htmlspecialchars($fileName ?: 'Untitled Document') ?></h3>
                                         <?php if (!empty($file['is_proposal'])): ?>
                                             <span class="badge badge-utm-gold py-1 px-2">Proposal</span>
                                         <?php endif; ?>
                                     </div>
-                                    <p class="mb-1 text-muted">Uploaded: <?= htmlspecialchars($file['uploaded_at'] ?? '') ?></p>
-                                    <p class="mb-0 text-muted">By <?= htmlspecialchars($file['uploader_name'] ?: 'Student') ?></p>
+                                    <div class="d-flex flex-wrap gap-3 small text-muted">
+                                        <span>Uploaded: <?= htmlspecialchars($file['uploaded_at'] ?? '') ?></span>
+                                        <span>By <?= htmlspecialchars($file['uploader_name'] ?: 'Student') ?></span>
+                                    </div>
                                 </div>
-                            </div>
-                            <div class="d-flex flex-wrap gap-2">
-                                <?php if ($filePath): ?>
-                                    <a href="<?= htmlspecialchars($filePath) ?>" class="btn btn-outline-secondary btn-sm">Download</a>
-                                <?php endif; ?>
-                                <?php if ((int) ($file['uploaded_by'] ?? 0) === (int) ($_SESSION['user_id'] ?? 0)): ?>
-                                    <button
-                                        class="btn btn-danger btn-sm"
-                                        type="button"
-                                        data-file-id="<?= (int) $file['file_id'] ?>"
-                                        data-file-name="<?= htmlspecialchars($fileName ?: 'File', ENT_QUOTES) ?>"
-                                        data-project-id="<?= $projectId ?>"
-                                        onclick="openDeleteFileModal(this)">
-                                        Delete
-                                    </button>
-                                <?php endif; ?>
+                                <div class="col-auto">
+                                    <div class="d-flex flex-wrap gap-2 justify-content-end">
+                                        <?php if ($filePath): ?>
+                                            <a href="<?= htmlspecialchars($filePath) ?>" class="btn btn-outline-secondary btn-sm">Download</a>
+                                        <?php endif; ?>
+                                        <?php if ((int) ($file['uploaded_by'] ?? 0) === (int) ($_SESSION['user_id'] ?? 0)): ?>
+                                            <button
+                                                class="btn btn-danger btn-sm"
+                                                type="button"
+                                                data-file-id="<?= (int) $file['file_id'] ?>"
+                                                data-file-name="<?= htmlspecialchars($fileName ?: 'File', ENT_QUOTES) ?>"
+                                                data-project-id="<?= $projectId ?>"
+                                                onclick="openDeleteFileModal(this)">
+                                                Delete
+                                            </button>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -341,79 +378,156 @@ require_once __DIR__ . '/student_header.php';
         <div class="row g-4 mt-2">
             <div class="col-12 col-lg-5">
                 <h4>Review Status</h4>
-                <div class="card border-utm rounded-4 p-3 shadow-sm">
-                    <?php if (empty($submissionHistory)): ?>
-                        <div class="text-muted">No submissions yet.</div>
-                    <?php else:
-                        $latest = $submissionHistory[0];
-                        $status = (string) ($latest['status'] ?? 'pending');
-                    ?>
-                        <div class="d-flex align-items-center justify-content-between mb-3">
-                            <div>
-                                <div class="small text-muted">Latest Submission</div>
-                                <strong class="h6 mb-0"><?= htmlspecialchars($statusLabels[$status] ?? ucfirst($status)) ?></strong>
-                                <div class="small text-muted"><?= !empty($latest['submitted_at']) ? htmlspecialchars(date('d/m/Y H:i', strtotime((string)$latest['submitted_at']))) : '' ?></div>
-                            </div>
-                            <div>
-                                <span class="status-chip <?= htmlspecialchars($statusClasses[$status] ?? 'status-pending') ?>"><?= htmlspecialchars(ucfirst($status)) ?></span>
-                            </div>
-                        </div>
+                <div class="comment-card border-utm rounded-3 p-3 mb-3">
+                    <div class="d-flex gap-3">
+                        <div class="avatar bg-utm-maroon text-white rounded-circle d-inline-flex align-items-center justify-content-center" style="width:44px;height:44px;font-weight:700;">RS</div>
+                        <div class="flex-grow-1">
+                            <?php if (empty($submissionHistory)): ?>
+                                <div class="text-muted">No submissions yet.</div>
+                            <?php else:
+                                $latest = $submissionHistory[0];
+                                $status = (string) ($latest['status'] ?? 'pending');
+                            ?>
+                                <div class="d-flex align-items-center justify-content-between mb-1">
+                                    <div>
+                                        <div class="small text-muted">Latest Submission</div>
+                                        <strong class="h6 mb-0"><?= htmlspecialchars($statusLabels[$status] ?? ucfirst($status)) ?></strong>
+                                        <div class="small text-muted"><?= !empty($latest['submitted_at']) ? htmlspecialchars(date('d/m/Y H:i', strtotime((string)$latest['submitted_at']))) : '' ?></div>
+                                    </div>
+                                    <div>
+                                        <span class="status-chip <?= htmlspecialchars($statusClasses[$status] ?? 'status-pending') ?>"><?= htmlspecialchars(ucfirst($status)) ?></span>
+                                    </div>
+                                </div>
 
-                        <?php if (count($submissionHistory) > 1): ?>
-                            <div class="divider mb-2" style="height:1px;background:rgba(128,0,32,0.06);"></div>
-                            <div class="small text-muted mb-2">History</div>
-                            <ul class="timeline-list">
-                                <?php foreach ($submissionHistory as $submission):
-                                    $s = (string) ($submission['status'] ?? 'pending');
-                                ?>
-                                    <li>
-                                        <span class="timeline-dot <?= htmlspecialchars($statusClasses[$s] ?? 'status-pending') ?>"></span>
-                                        <strong><?= htmlspecialchars($statusLabels[$s] ?? ucfirst($s)) ?></strong>
-                                        <span class="small text-muted"> <?= !empty($submission['submitted_at']) ? htmlspecialchars(date('d/m/Y H:i', strtotime((string)$submission['submitted_at']))) : '' ?></span>
-                                    </li>
-                                <?php endforeach; ?>
-                            </ul>
-                        <?php endif; ?>
-                    <?php endif; ?>
+                                <?php if (count($submissionHistory) > 1): ?>
+                                    <div class="divider mb-2" style="height:1px;background:rgba(128,0,32,0.06);"></div>
+                                    <div class="small text-muted mb-2">History</div>
+                                    <ul class="timeline-list">
+                                        <?php foreach ($submissionHistory as $submission):
+                                            $s = (string) ($submission['status'] ?? 'pending');
+                                        ?>
+                                            <li>
+                                                <span class="timeline-dot <?= htmlspecialchars($statusClasses[$s] ?? 'status-pending') ?>"></span>
+                                                <strong><?= htmlspecialchars($statusLabels[$s] ?? ucfirst($s)) ?></strong>
+                                                <span class="small text-muted"> <?= !empty($submission['submitted_at']) ? htmlspecialchars(date('d/m/Y H:i', strtotime((string)$submission['submitted_at']))) : '' ?></span>
+                                            </li>
+                                        <?php endforeach; ?>
+                                    </ul>
+                                <?php endif; ?>
+                            <?php endif; ?>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div class="col-12 col-lg-7">
+            <div class="col-12 col-lg-7" id="feedbackSection">
                 <h4>Lecturer Comments</h4>
                 <?php if (empty($feedbackLog)): ?>
                     <div class="card border-utm rounded-4 p-3 text-muted">No lecturer comments yet.</div>
                 <?php else: ?>
                     <div class="comment-stack">
-                        <?php foreach ($feedbackLog as $entry): ?>
+                        <?php foreach ($feedbackLog as $block):
+                            $base = $block['base'];
+                            $replies = $block['replies'];
+                        ?>
                             <div class="comment-card border-utm rounded-3 p-3 mb-3">
                                 <div class="d-flex gap-3">
-                                    <div class="avatar bg-utm-maroon text-white rounded-circle d-inline-flex align-items-center justify-content-center" style="width:44px;height:44px;font-weight:700;"><?= htmlspecialchars(substr($entry['author'] ?? 'L',0,1)) ?></div>
+                                    <div class="avatar bg-utm-maroon text-white rounded-circle d-inline-flex align-items-center justify-content-center" style="width:44px;height:44px;font-weight:700;"><?= htmlspecialchars(substr($base['author'] ?? 'L', 0, 1)) ?></div>
                                     <div class="flex-grow-1">
                                         <div class="d-flex justify-content-between align-items-start mb-1">
-                                            <strong><?= htmlspecialchars($entry['author']) ?></strong>
-                                            <span class="small text-muted"><?= !empty($entry['created_at']) ? htmlspecialchars(date('d/m/Y H:i', strtotime((string) $entry['created_at']))) : '' ?></span>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <button class="btn btn-sm comment-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#comment-<?= (int) $base['comment_id'] ?>" aria-expanded="false" aria-controls="comment-<?= (int) $base['comment_id'] ?>" aria-label="Toggle comment">
+                                                    <i class="bi bi-chevron-right"></i>
+                                                </button>
+                                                <strong><?= htmlspecialchars($base['author']) ?></strong>
+                                            </div>
+                                            <span class="small text-muted"><?= !empty($base['created_at']) ? htmlspecialchars(date('d/m/Y H:i', strtotime((string) $base['created_at']))) : '' ?></span>
                                         </div>
-                                        <div class="mt-2 comment-body"><?= nl2br(htmlspecialchars($entry['comment'])) ?></div>
+                                        <div class="collapse" id="comment-<?= (int) $base['comment_id'] ?>">
+                                            <div class="comment-content mt-3">
+                                                <div class="comment-body"><?= nl2br(htmlspecialchars($base['comment'])) ?></div>
+                                                <div class="mt-3 d-flex justify-content-end comment-actions">
+                                                    <div class="dropdown">
+                                                        <button class="btn btn-sm comment-menu" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Comment options">
+                                                            <i class="bi bi-three-dots-vertical"></i>
+                                                        </button>
+                                                        <ul class="dropdown-menu dropdown-menu-end">
+                                                            <li>
+                                                                <form action="student_actions.php?action=delete_comment&project_id=<?= $projectId ?>" method="post" class="m-0">
+                                                                    <input type="hidden" name="comment_id" value="<?= (int) $base['comment_id'] ?>">
+                                                                    <input type="hidden" name="delete_mode" value="me">
+                                                                    <button type="submit" class="dropdown-item">Delete for me</button>
+                                                                </form>
+                                                            </li>
+                                                            <?php if ((int) ($base['author_id'] ?? 0) === $studentId): ?>
+                                                                <li>
+                                                                    <form action="student_actions.php?action=delete_comment&project_id=<?= $projectId ?>" method="post" class="m-0">
+                                                                        <input type="hidden" name="comment_id" value="<?= (int) $base['comment_id'] ?>">
+                                                                        <input type="hidden" name="delete_mode" value="all">
+                                                                        <button type="submit" class="dropdown-item text-danger">Delete for all</button>
+                                                                    </form>
+                                                                </li>
+                                                            <?php endif; ?>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                <?php if (!empty($replies)): ?>
+                                            <?php foreach ($replies as $reply): ?>
+                                                <div class="comment-reply mt-3 p-3 rounded-3">
+                                                    <div class="d-flex align-items-center justify-content-between mb-2">
+                                                        <span class="fw-semibold small"><?= htmlspecialchars($reply['author']) ?></span>
+                                                        <span class="small text-muted"><?= !empty($reply['created_at']) ? htmlspecialchars(date('d/m/Y H:i', strtotime((string) $reply['created_at']))) : '' ?></span>
+                                                    </div>
+                                                    <div class="comment-body"><?= nl2br(htmlspecialchars($reply['comment'])) ?></div>
+                                                    <div class="mt-3 d-flex justify-content-end comment-actions">
+                                                        <div class="dropdown">
+                                                            <button class="btn btn-sm comment-menu" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Comment options">
+                                                                <i class="bi bi-three-dots-vertical"></i>
+                                                            </button>
+                                                            <ul class="dropdown-menu dropdown-menu-end">
+                                                                <li>
+                                                                    <form action="student_actions.php?action=delete_comment&project_id=<?= $projectId ?>" method="post" class="m-0">
+                                                                        <input type="hidden" name="comment_id" value="<?= (int) $reply['comment_id'] ?>">
+                                                                        <input type="hidden" name="delete_mode" value="me">
+                                                                        <button type="submit" class="dropdown-item">Delete for me</button>
+                                                                    </form>
+                                                                </li>
+                                                                <?php if ((int) ($reply['author_id'] ?? 0) === $studentId): ?>
+                                                                    <li>
+                                                                        <form action="student_actions.php?action=delete_comment&project_id=<?= $projectId ?>" method="post" class="m-0">
+                                                                            <input type="hidden" name="comment_id" value="<?= (int) $reply['comment_id'] ?>">
+                                                                            <input type="hidden" name="delete_mode" value="all">
+                                                                            <button type="submit" class="dropdown-item text-danger">Delete for all</button>
+                                                                        </form>
+                                                                    </li>
+                                                                <?php endif; ?>
+                                                            </ul>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            <?php endforeach; ?>
+                                        <?php endif; ?>
+                                        <div class="reply-box mt-4 pt-3 border-top">
+                                            <form action="student_actions.php?action=post_comment&project_id=<?= $projectId ?>" method="post">
+                                                <label class="form-label mb-2">Reply to lecturer</label>
+                                                <textarea name="comment_content" class="form-control" rows="3" placeholder="Write a polite reply to your lecturer..." required></textarea>
+                                                <div class="d-flex justify-content-end mt-2">
+                                                    <button class="btn btn-outline-secondary btn-sm me-2" type="reset">Clear</button>
+                                                    <button class="btn btn-utm btn-sm" type="submit">Send Reply</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         <?php endforeach; ?>
-                    </div>
-                <?php endif; ?>
-
-                <div class="mt-3">
-                    <form action="student_actions.php?action=post_comment&project_id=<?= $projectId ?>" method="post">
-                        <label class="form-label">Reply to lecturer</label>
-                        <textarea name="comment_content" class="form-control" rows="3" placeholder="Write a polite reply to your lecturer..." required></textarea>
-                        <div class="d-flex justify-content-end mt-2">
-                            <button class="btn btn-outline-secondary btn-sm me-2" type="reset">Clear</button>
-                            <button class="btn btn-utm btn-sm" type="submit">Send Reply</button>
                         </div>
-                    </form>
+                    <?php endif; ?>
                 </div>
             </div>
-        </div>
 
+            
 </section>
 </main>
 </div>
@@ -517,7 +631,7 @@ require_once __DIR__ . '/student_header.php';
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button type="submit" class="btn btn-warning">Generate Word Proposal</button>
+        <button type="submit" class="btn btn-utm">Generate Word Proposal</button>
       </div>
     </form>
   </div>
@@ -559,6 +673,21 @@ function openDeleteFileModal(button) {
   const deleteModal = new bootstrap.Modal(document.getElementById('confirmDeleteFileModal'));
   deleteModal.show();
 }
+
+function hidePageToast() {
+  const toast = document.getElementById('pageToast');
+  if (toast) {
+    toast.classList.remove('show');
+  }
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  const toast = document.getElementById('pageToast');
+  if (toast) {
+    requestAnimationFrame(() => toast.classList.add('show'));
+    setTimeout(() => hidePageToast(), 4200);
+  }
+});
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

@@ -72,6 +72,13 @@ CREATE TABLE IF NOT EXISTS comments (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS comment_visibility (
+  comment_id INTEGER NOT NULL REFERENCES comments(comment_id),
+  user_id INTEGER NOT NULL REFERENCES users(user_id),
+  hidden_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (comment_id, user_id)
+);
+
 CREATE TABLE IF NOT EXISTS submissions (
   submission_id INTEGER PRIMARY KEY AUTOINCREMENT,
   project_id INTEGER NOT NULL REFERENCES projects(project_id),

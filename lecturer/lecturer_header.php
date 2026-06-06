@@ -100,7 +100,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 $flashMessage = 'Project submission approved.';
             } elseif ($action === 'reject') {
                 updateSubmissionStatus($db, $projectId, 'rejected');
-                $flashMessage = 'Project submission rejected.';
+                $rejectionFeedback = trim((string) ($_POST['rejection_feedback'] ?? ''));
+                if ($rejectionFeedback !== '') {
+                    $stmt = $db->prepare('INSERT INTO comments (project_id, user_id, content_encrypted) VALUES (?, ?, ?)');
+                    $stmt->execute([$projectId, $lecturerId, encryptData($rejectionFeedback)]);
+                    $flashMessage = 'Project submission rejected and feedback saved.';
+                } else {
+                    $flashMessage = 'Project submission rejected.';
+                }
                 $flashType = 'danger';
             } elseif ($action === 'comment') {
                 $comment = trim((string) ($_POST['comment'] ?? ''));

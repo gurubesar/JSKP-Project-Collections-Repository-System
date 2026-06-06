@@ -178,6 +178,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-size: 0.92rem;
         }
 
+        .public-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 16px;
+            width: 100%;
+            color: var(--utm-maroon);
+            font-weight: 700;
+        }
+
         .btn-login {
             min-width: 130px;
             padding: 14px 22px;
@@ -226,6 +236,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
 
             <div class="login-subtitle">Access your Admin, Lecturer or Student dashboard.</div>
+            <a class="public-link" href="posters.php">View public project posters</a>
 
             <?php if ($error): ?>
                 <div class="error-msg"><?= htmlspecialchars($error) ?></div>

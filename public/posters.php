@@ -28,8 +28,10 @@ function publicPosterCode(int $projectId): string
 function publicPosterIsPosterFile(string $fileName): bool
 {
     $normalized = strtolower($fileName);
+    $extension = strtolower(pathinfo($normalized, PATHINFO_EXTENSION));
+    $imageExtensions = ['png', 'jpg', 'jpeg', 'webp'];
 
-    return $normalized !== '' && str_contains($normalized, 'poster');
+    return $normalized !== '' && str_contains($normalized, 'poster') && in_array($extension, $imageExtensions, true);
 }
 
 $projects = [];
@@ -227,13 +229,21 @@ try {
         }
 
         .poster-preview {
-            min-height: 176px;
-            padding: 22px;
+            height: clamp(220px, 28vw, 320px);
             display: grid;
             place-items: center;
             background:
                 linear-gradient(135deg, rgba(128, 0, 32, 0.1), rgba(242, 169, 0, 0.14)),
                 #fff7ec;
+            overflow: hidden;
+        }
+
+        .poster-preview img {
+            width: 100%;
+            height: 100%;
+            display: block;
+            object-fit: contain;
+            background: #fff;
         }
 
         .poster-icon {
@@ -418,12 +428,17 @@ try {
                     $studentNames = implode(', ', $project['students']);
                     $posterNames = implode(' ', array_map(static fn($poster) => $poster['name'], $project['posters']));
                     $searchText = strtolower($project['title'] . ' ' . $project['description'] . ' ' . $project['lecturer'] . ' ' . $studentNames . ' ' . $posterNames);
+                    $primaryPoster = $project['posters'][0] ?? null;
                     ?>
                     <article class="poster-card poster-item" data-search="<?= publicPosterE($searchText) ?>" data-year="<?= publicPosterE((string) $project['study_year']) ?>">
                         <div class="poster-preview">
-                            <div class="poster-icon" aria-hidden="true">
-                                <i class="bi bi-file-earmark-richtext"></i>
-                            </div>
+                            <?php if ($primaryPoster && !empty($primaryPoster['path'])): ?>
+                                <img src="<?= publicPosterE($primaryPoster['path']) ?>" alt="<?= publicPosterE($project['title']) ?> poster">
+                            <?php else: ?>
+                                <div class="poster-icon" aria-hidden="true">
+                                    <i class="bi bi-image"></i>
+                                </div>
+                            <?php endif; ?>
                         </div>
                         <div class="poster-card-body">
                             <div>

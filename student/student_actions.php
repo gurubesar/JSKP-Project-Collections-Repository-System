@@ -56,6 +56,21 @@ function notifyProjectLecturer(PDO $db, int $projectId, int $studentId, string $
     }
 }
 
+function projectUploadDirectory(int $projectId): string
+{
+    return __DIR__ . '/../uploads/' . $projectId . '/';
+}
+
+function projectUploadWebPath(int $projectId, string $fileName): string
+{
+    return '/uploads/' . $projectId . '/' . $fileName;
+}
+
+function sanitizeUploadedFileName(string $fileName): string
+{
+    return preg_replace('/[^A-Za-z0-9_\-\.]/', '_', basename($fileName));
+}
+
 try {
     if ($action === 'upload_file' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($projectId <= 0) throw new RuntimeException('Invalid project');
@@ -75,8 +90,8 @@ try {
             throw new RuntimeException('Please submit only PDF files.');
         }
 
-        $safeName = time() . '_' . preg_replace('/[^A-Za-z0-9_\-\.]/', '_', $origName);
-        $destDir = __DIR__ . '/../public/uploads/';
+        $safeName = time() . '_' . sanitizeUploadedFileName($origName);
+        $destDir = projectUploadDirectory($projectId);
         if (!is_dir($destDir)) mkdir($destDir, 0755, true);
         $destPath = $destDir . $safeName;
 
@@ -84,7 +99,7 @@ try {
             throw new RuntimeException('Unable to move uploaded file');
         }
 
-        $webPath = '/public/uploads/' . $safeName;
+        $webPath = projectUploadWebPath($projectId, $safeName);
         $stmt = $db->prepare('INSERT INTO files (project_id, file_name_encrypted, file_path_encrypted, uploaded_by) VALUES (?, ?, ?, ?)');
         $stmt->execute([$projectId, encryptData($origName), encryptData($webPath), $studentId]);
 
@@ -101,6 +116,56 @@ try {
 
         set_flash('File uploaded successfully.');
         header('Location: ../student/student_project.php?project_id=' . $projectId . '#uploadBox');
+        exit;
+    }
+
+    if ($action === 'upload_poster' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        if ($projectId <= 0) throw new RuntimeException('Invalid project');
+        if (!isset($_FILES['project_poster'])) throw new RuntimeException('No poster uploaded');
+
+        $file = $_FILES['project_poster'];
+        if ($file['error'] !== UPLOAD_ERR_OK) throw new RuntimeException('Poster upload failed');
+
+        $maxFileSize = 50 * 1024 * 1024; // 50 MB
+        if ($file['size'] > $maxFileSize) {
+            throw new RuntimeException('Poster file size exceeds 50 MB limit. Please upload a smaller file.');
+        }
+
+        $origName = basename($file['name']);
+        $ext = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
+        $allowedExtensions = ['png', 'jpg', 'jpeg', 'webp'];
+        if (!in_array($ext, $allowedExtensions, true)) {
+            throw new RuntimeException('Please upload a poster image as PNG, JPG, JPEG, or WEBP.');
+        }
+        $imageInfo = @getimagesize($file['tmp_name']);
+        $allowedMimeTypes = ['image/png', 'image/jpeg', 'image/webp'];
+        if ($imageInfo === false || !in_array((string) ($imageInfo['mime'] ?? ''), $allowedMimeTypes, true)) {
+            throw new RuntimeException('The selected poster must be a valid PNG, JPG, JPEG, or WEBP image.');
+        }
+
+        $posterName = str_contains(strtolower($origName), 'poster') ? $origName : 'poster_' . $origName;
+        $safeName = time() . '_' . sanitizeUploadedFileName($posterName);
+        $destDir = projectUploadDirectory($projectId);
+        if (!is_dir($destDir)) mkdir($destDir, 0755, true);
+        $destPath = $destDir . $safeName;
+
+        if (!move_uploaded_file($file['tmp_name'], $destPath)) {
+            throw new RuntimeException('Unable to move uploaded poster');
+        }
+
+        $webPath = projectUploadWebPath($projectId, $safeName);
+        $stmt = $db->prepare('INSERT INTO files (project_id, file_name_encrypted, file_path_encrypted, uploaded_by) VALUES (?, ?, ?, ?)');
+        $stmt->execute([$projectId, encryptData($posterName), encryptData($webPath), $studentId]);
+
+        notifyProjectLecturer(
+            $db,
+            $projectId,
+            $studentId,
+            sprintf('Student %s uploaded a project poster "%s" for project %s.', $_SESSION['user_name'] ?? 'A student', $posterName, 'UTM-FYP-' . str_pad((string) $projectId, 4, '0', STR_PAD_LEFT))
+        );
+
+        set_flash('Project poster uploaded successfully. It is now visible in the public poster gallery.');
+        header('Location: ../student/student_project.php?project_id=' . $projectId . '#posterBox');
         exit;
     }
 
@@ -176,12 +241,12 @@ try {
             $baseFileName = 'project_' . $projectId . '_proposal_' . time();
         }
         $safeName = $baseFileName . '.doc';
-        $destDir = __DIR__ . '/../public/uploads/';
+        $destDir = projectUploadDirectory($projectId);
         if (!is_dir($destDir)) mkdir($destDir, 0755, true);
         $destPath = $destDir . $safeName;
         file_put_contents($destPath, $html);
 
-        $webPath = '/public/uploads/' . $safeName;
+        $webPath = projectUploadWebPath($projectId, $safeName);
         $stmt = $db->prepare('INSERT INTO files (project_id, file_name_encrypted, file_path_encrypted, uploaded_by) VALUES (?, ?, ?, ?)');
         $stmt->execute([$projectId, encryptData($safeName), encryptData($webPath), $studentId]);
 

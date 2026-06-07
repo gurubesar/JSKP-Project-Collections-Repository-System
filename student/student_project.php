@@ -39,6 +39,7 @@ $members = [];
 $files = [];
 $processedFiles = [];
 $generatedProposal = null;
+$projectPoster = null;
 $feedbackLog = [];
 $submissionHistory = [];
 $currentStatus = 'pending';
@@ -116,9 +117,13 @@ try {
         }
 
         $isProposalFile = false;
+        $isPosterFile = false;
         $normalizedFileName = strtolower($fileName);
         if ($normalizedFileName !== '' && (str_ends_with($normalizedFileName, '.doc') || str_contains($normalizedFileName, 'proposal'))) {
             $isProposalFile = true;
+        }
+        if ($normalizedFileName !== '' && str_contains($normalizedFileName, 'poster')) {
+            $isPosterFile = true;
         }
 
         $processedFile = [
@@ -129,11 +134,15 @@ try {
             'uploader_name' => student_project_decrypt($fileRow['uploader_name'] ?? ''),
             'uploaded_by' => (int) ($fileRow['uploaded_by'] ?? 0),
             'is_proposal' => $isProposalFile,
+            'is_poster' => $isPosterFile,
         ];
 
         $processedFiles[] = $processedFile;
         if ($isProposalFile && $generatedProposal === null) {
             $generatedProposal = $processedFile;
+        }
+        if ($isPosterFile && $projectPoster === null) {
+            $projectPoster = $processedFile;
         }
     }
 
@@ -233,6 +242,7 @@ require_once __DIR__ . '/student_header.php';
                     <div class="d-flex flex-wrap gap-2">
                         <button class="btn btn-utm" data-bs-toggle="modal" data-bs-target="#generateProposalModal">Generate Proposal</button>
                         <button class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#uploadBox">Upload File</button>
+                        <button class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#posterBox">Upload Poster</button>
                     </div>
                 </div>
                 <div class="col-lg-4 mt-4 mt-lg-0">
@@ -265,9 +275,23 @@ require_once __DIR__ . '/student_header.php';
                     <div class="mb-3">
                         <label class="form-label">Select PDF file</label>
                         <input type="file" name="project_file" class="form-control" accept="application/pdf" required>
-                        <div class=\"form-text\">Please submit only PDF files (max 200 MB).</div>
+                        <div class="form-text">Please submit only PDF files (max 200 MB).</div>
                     </div>
                     <button class="btn btn-utm" type="submit">Upload</button>
+                </form>
+            </div>
+        </div>
+
+        <div id="posterBox" class="collapse mb-4">
+            <div class="card border-utm rounded-4 p-4 shadow-sm">
+                <h2 class="h5 mb-3">Upload Project Poster</h2>
+                <form action="student_actions.php?action=upload_poster&project_id=<?= $projectId ?>" method="post" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label class="form-label">Select poster file</label>
+                        <input type="file" name="project_poster" class="form-control" accept="image/png,image/jpeg,image/webp" required>
+                        <div class="form-text">Accepted image formats: PNG, JPG, JPEG, or WEBP (max 50 MB).</div>
+                    </div>
+                    <button class="btn btn-utm" type="submit">Upload Poster</button>
                 </form>
             </div>
         </div>
@@ -320,6 +344,47 @@ require_once __DIR__ . '/student_header.php';
             <?php endif; ?>
         </div>
 
+        <div class="card border-utm rounded-4 p-4 shadow-sm mb-4">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+                <div>
+                    <h3 class="h6 mb-1">Project Poster</h3>
+                    <p class="text-muted mb-0">The latest poster uploaded here is shown in the public Project Poster Gallery.</p>
+                </div>
+                <?php if ($projectPoster): ?>
+                    <span class="badge badge-utm-gold">Published</span>
+                <?php else: ?>
+                    <span class="badge badge-secondary">Not uploaded</span>
+                <?php endif; ?>
+            </div>
+            <?php if ($projectPoster): ?>
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                    <div>
+                        <strong><?= htmlspecialchars($projectPoster['file_name'] ?: 'Project poster') ?></strong>
+                        <div class="text-muted small">Uploaded: <?= htmlspecialchars($projectPoster['uploaded_at'] ?: 'Unknown') ?></div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <?php if ($projectPoster['file_path']): ?>
+                            <a href="<?= htmlspecialchars($projectPoster['file_path']) ?>" class="btn btn-outline-secondary btn-sm" target="_blank" rel="noopener">View</a>
+                            <a href="<?= htmlspecialchars($projectPoster['file_path']) ?>" class="btn btn-outline-secondary btn-sm" download="<?= htmlspecialchars($projectPoster['file_name'] ?: 'project-poster') ?>">Download</a>
+                        <?php endif; ?>
+                        <?php if ((int) $projectPoster['uploaded_by'] === (int) ($_SESSION['user_id'] ?? 0)): ?>
+                            <button
+                                class="btn btn-danger btn-sm"
+                                type="button"
+                                data-file-id="<?= (int) $projectPoster['file_id'] ?>"
+                                data-file-name="<?= htmlspecialchars($projectPoster['file_name'] ?: 'Project poster', ENT_QUOTES) ?>"
+                                data-project-id="<?= $projectId ?>"
+                                onclick="openDeleteFileModal(this)">
+                                Delete
+                            </button>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            <?php else: ?>
+                <div class="text-muted">No project poster uploaded yet. Use the Upload Poster button above to publish one.</div>
+            <?php endif; ?>
+        </div>
+
         <?php if (empty($processedFiles)): ?>
             <div class="card border-utm rounded-4 p-4 shadow-sm">
                 <p class="mb-0 text-muted">No files uploaded yet. Use the button above to add a proposal or document.</p>
@@ -343,6 +408,9 @@ require_once __DIR__ . '/student_header.php';
                                         <h3 class="h6 mb-0 text-truncate"><?= htmlspecialchars($fileName ?: 'Untitled Document') ?></h3>
                                         <?php if (!empty($file['is_proposal'])): ?>
                                             <span class="badge badge-utm-gold py-1 px-2">Proposal</span>
+                                        <?php endif; ?>
+                                        <?php if (!empty($file['is_poster'])): ?>
+                                            <span class="badge badge-utm-gold py-1 px-2">Poster</span>
                                         <?php endif; ?>
                                     </div>
                                     <div class="d-flex flex-wrap gap-3 small text-muted">

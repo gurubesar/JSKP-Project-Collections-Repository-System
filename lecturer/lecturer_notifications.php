@@ -8,6 +8,7 @@ if (!isset($_SESSION['lecturer_logged_in']) || $_SESSION['lecturer_logged_in'] !
     exit;
 }
 
+ob_start();
 $lecturerHeaderSkipDashboardData = true;
 require_once __DIR__ . '/lecturer_header.php';
 
@@ -26,11 +27,13 @@ try {
     if ($notificationAction === 'mark_read' && $notificationId > 0) {
         $update = $db->prepare('UPDATE notifications SET is_read = 1 WHERE notification_id = ? AND recipient_user_id = ?');
         $update->execute([$notificationId, $lecturerId]);
+        ob_end_clean();
         header('Location: ' . $allowedReturnUrl);
         exit;
     } elseif ($notificationAction === 'mark_all_read') {
         $update = $db->prepare('UPDATE notifications SET is_read = 1 WHERE recipient_user_id = ?');
         $update->execute([$lecturerId]);
+        ob_end_clean();
         header('Location: ' . $allowedReturnUrl);
         exit;
     }
@@ -79,7 +82,7 @@ try {
                                 $projectTitle = decryptValue($notification['project_title'] ?? '');
                                 $senderName = decryptValue($notification['sender_name'] ?? '');
                                 ?>
-                                <a href="?action=mark_read&id=<?= e($notification['notification_id']) ?>&return=<?= rawurlencode($returnUrl) ?>" class="list-group-item list-group-item-action <?= $notification['is_read'] ? 'bg-white' : 'bg-light fw-semibold' ?>">
+                                <a href="?action=mark_read&id=<?= e($notification['notification_id']) ?>&return=<?= rawurlencode($returnUrl) ?>" class="list-group-item list-group-item-action <?= $notification['is_read'] ? 'bg-light text-muted' : 'bg-light fw-semibold' ?>">
                                     <div class="d-flex justify-content-between align-items-start">
                                         <div>
                                             <p class="mb-1"><?= e($notification['message']) ?></p>

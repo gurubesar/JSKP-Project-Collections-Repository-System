@@ -258,6 +258,21 @@ require_once __DIR__ . '/student_header.php';
                 </div>
             </div>
         </div>
+
+        <div id="uploadBox" class="collapse mb-4">
+            <div class="card border-utm rounded-4 p-4 shadow-sm">
+                <h2 class="h5 mb-3">Upload New File</h2>
+                <form action="student_actions.php?action=upload_file&project_id=<?= $projectId ?>" method="post" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label class="form-label">Select PDF file</label>
+                        <input type="file" name="project_file" class="form-control" accept="application/pdf" required>
+                        <div class="form-text">Please submit only PDF files (max 200 MB).</div>
+                    </div>
+                    <button class="btn btn-utm" type="submit">Upload</button>
+                </form>
+            </div>
+        </div>
+
         <div id="progressSection" class="card border-utm rounded-4 p-4 shadow-sm mb-4">
             <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-3">
                 <div>
@@ -296,20 +311,6 @@ require_once __DIR__ . '/student_header.php';
                     <button type="submit" class="btn btn-utm">Save progress update</button>
                 </div>
             </form>
-        </div>
-
-        <div id="uploadBox" class="collapse mb-4">
-            <div class="card border-utm rounded-4 p-4 shadow-sm">
-                <h2 class="h5 mb-3">Upload New File</h2>
-                <form action="student_actions.php?action=upload_file&project_id=<?= $projectId ?>" method="post" enctype="multipart/form-data">
-                    <div class="mb-3">
-                        <label class="form-label">Select PDF file</label>
-                        <input type="file" name="project_file" class="form-control" accept="application/pdf" required>
-                        <div class="form-text">Please submit only PDF files (max 200 MB).</div>
-                    </div>
-                    <button class="btn btn-utm" type="submit">Upload</button>
-                </form>
-            </div>
         </div>
 
         <div class="section-title mt-4">

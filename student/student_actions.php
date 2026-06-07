@@ -1,19 +1,21 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-
 require_once __DIR__ . '/../database/db.php';
 require_once __DIR__ . '/../database/encryption.php';
+require_once __DIR__ . '/../includes/security.php';
+require_once __DIR__ . '/../includes/file_storage.php';
 
-if (!isset($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'student') {
-    header('Location: ../public/login.php');
-    exit;
-}
+require_role(['student']);
 
 $studentId = (int) $_SESSION['user_id'];
 $action = $_REQUEST['action'] ?? '';
 $projectId = (int) ($_REQUEST['project_id'] ?? 0);
+
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+    validate_csrf_token();
+}
+if ($projectId > 0) {
+    require_project_access($db, $projectId);
+}
 
 // Simple flash helper
 function set_flash(string $msg, string $type = 'success'): void
@@ -76,38 +78,16 @@ try {
         if ($projectId <= 0) throw new RuntimeException('Invalid project');
         if (!isset($_FILES['project_file'])) throw new RuntimeException('No file uploaded');
 
-        $file = $_FILES['project_file'];
-        if ($file['error'] !== UPLOAD_ERR_OK) throw new RuntimeException('Upload failed');
-
-        $maxFileSize = 200 * 1024 * 1024; // 200 MB
-        if ($file['size'] > $maxFileSize) {
-            throw new RuntimeException('File size exceeds 200 MB limit. Please upload a smaller file.');
-        }
-
-        $origName = basename($file['name']);
-        $ext = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
-        if ($ext !== 'pdf') {
-            throw new RuntimeException('Please submit only PDF files.');
-        }
-
-        $safeName = time() . '_' . sanitizeUploadedFileName($origName);
-        $destDir = projectUploadDirectory($projectId);
-        if (!is_dir($destDir)) mkdir($destDir, 0755, true);
-        $destPath = $destDir . $safeName;
-
-        if (!move_uploaded_file($file['tmp_name'], $destPath)) {
-            throw new RuntimeException('Unable to move uploaded file');
-        }
-
-        $webPath = projectUploadWebPath($projectId, $safeName);
+        $stored = store_repository_upload($_FILES['project_file'], $projectId);
         $stmt = $db->prepare('INSERT INTO files (project_id, file_name_encrypted, file_path_encrypted, uploaded_by) VALUES (?, ?, ?, ?)');
-        $stmt->execute([$projectId, encryptData($origName), encryptData($webPath), $studentId]);
+        $stmt->execute([$projectId, encryptData($stored['original_name']), encryptData($stored['stored_path']), $studentId]);
+        audit_log($db, $studentId, 'Repository Upload', 'Uploaded file to project ' . $projectId);
 
         notifyProjectLecturer(
             $db,
             $projectId,
             $studentId,
-            sprintf('Student %s uploaded a new file "%s" for project %s.', $_SESSION['user_name'] ?? 'A student', $origName, 'UTM-FYP-' . str_pad((string) $projectId, 4, '0', STR_PAD_LEFT))
+            sprintf('Student %s uploaded a new file "%s" for project %s.', $_SESSION['user_name'] ?? 'A student', $stored['original_name'], 'UTM-FYP-' . str_pad((string) $projectId, 4, '0', STR_PAD_LEFT))
         );
 
         // mark submission as pending
@@ -171,27 +151,27 @@ try {
 
     if ($action === 'generate_proposal' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($projectId <= 0) throw new RuntimeException('Invalid project');
-        $title = trim((string) ($_POST['proposal_title'] ?? 'Project Proposal'));
-        $proposalFileName = trim((string) ($_POST['proposal_file_name'] ?? ''));
-        $projectType = trim((string) ($_POST['proposal_type'] ?? ''));
-        $clientName = trim((string) ($_POST['proposal_client'] ?? ''));
-        $programmingLanguage = trim((string) ($_POST['proposal_language'] ?? ''));
-        $framework = trim((string) ($_POST['proposal_framework'] ?? ''));
-        $database = trim((string) ($_POST['proposal_database'] ?? ''));
-        $methodology = trim((string) ($_POST['proposal_methodology'] ?? ''));
-        $projectAim = trim((string) ($_POST['proposal_aim'] ?? ''));
-        $objectives = trim((string) ($_POST['proposal_objectives'] ?? ''));
-        $scopes = trim((string) ($_POST['proposal_scopes'] ?? ''));
-        $problemDescription = trim((string) ($_POST['proposal_problem_description'] ?? ''));
-        $affects = trim((string) ($_POST['proposal_affects'] ?? ''));
-        $impact = trim((string) ($_POST['proposal_impact'] ?? ''));
-        $successfulSolution = trim((string) ($_POST['proposal_successful_solution'] ?? ''));
-        $productFor = trim((string) ($_POST['proposal_product_for'] ?? ''));
-        $productWho = trim((string) ($_POST['proposal_product_who'] ?? ''));
-        $productName = trim((string) ($_POST['proposal_product_name'] ?? ''));
-        $productThat = trim((string) ($_POST['proposal_product_that'] ?? ''));
-        $productUnlike = trim((string) ($_POST['proposal_product_unlike'] ?? ''));
-        $productOur = trim((string) ($_POST['proposal_product_our'] ?? ''));
+        $title = clean_input($_POST['proposal_title'] ?? 'Project Proposal', 200);
+        $proposalFileName = clean_input($_POST['proposal_file_name'] ?? '', 120);
+        $projectType = clean_input($_POST['proposal_type'] ?? '', 120);
+        $clientName = clean_input($_POST['proposal_client'] ?? '', 120);
+        $programmingLanguage = clean_input($_POST['proposal_language'] ?? '', 120);
+        $framework = clean_input($_POST['proposal_framework'] ?? '', 120);
+        $database = clean_input($_POST['proposal_database'] ?? '', 120);
+        $methodology = clean_input($_POST['proposal_methodology'] ?? '', 120);
+        $projectAim = clean_input($_POST['proposal_aim'] ?? '', 2000);
+        $objectives = clean_input($_POST['proposal_objectives'] ?? '', 2000);
+        $scopes = clean_input($_POST['proposal_scopes'] ?? '', 2000);
+        $problemDescription = clean_input($_POST['proposal_problem_description'] ?? '', 2000);
+        $affects = clean_input($_POST['proposal_affects'] ?? '', 1000);
+        $impact = clean_input($_POST['proposal_impact'] ?? '', 1000);
+        $successfulSolution = clean_input($_POST['proposal_successful_solution'] ?? '', 2000);
+        $productFor = clean_input($_POST['proposal_product_for'] ?? '', 1000);
+        $productWho = clean_input($_POST['proposal_product_who'] ?? '', 1000);
+        $productName = clean_input($_POST['proposal_product_name'] ?? '', 120);
+        $productThat = clean_input($_POST['proposal_product_that'] ?? '', 1000);
+        $productUnlike = clean_input($_POST['proposal_product_unlike'] ?? '', 1000);
+        $productOur = clean_input($_POST['proposal_product_our'] ?? '', 1000);
 
         $escape = static fn(string $value): string => nl2br(htmlspecialchars($value, ENT_QUOTES, 'UTF-8'));
 
@@ -240,15 +220,17 @@ try {
         if ($baseFileName === '') {
             $baseFileName = 'project_' . $projectId . '_proposal_' . time();
         }
-        $safeName = $baseFileName . '.doc';
-        $destDir = projectUploadDirectory($projectId);
+        $safeName = $baseFileName . '.docx';
+        $destDir = secure_upload_base_dir() . '/' . $projectId . '/';
         if (!is_dir($destDir)) mkdir($destDir, 0755, true);
-        $destPath = $destDir . $safeName;
+        $storedName = random_repository_filename('docx');
+        $destPath = $destDir . $storedName;
         file_put_contents($destPath, $html);
 
-        $webPath = projectUploadWebPath($projectId, $safeName);
+        $storedPath = 'secure://' . $projectId . '/' . $storedName;
         $stmt = $db->prepare('INSERT INTO files (project_id, file_name_encrypted, file_path_encrypted, uploaded_by) VALUES (?, ?, ?, ?)');
-        $stmt->execute([$projectId, encryptData($safeName), encryptData($webPath), $studentId]);
+        $stmt->execute([$projectId, encryptData($safeName), encryptData($storedPath), $studentId]);
+        audit_log($db, $studentId, 'Repository Upload', 'Generated proposal for project ' . $projectId);
 
         notifyProjectLecturer(
             $db,
@@ -282,6 +264,7 @@ try {
 
         $del = $db->prepare('DELETE FROM files WHERE file_id = ?');
         $del->execute([$fileId]);
+        audit_log($db, $studentId, 'Repository Delete', 'Deleted file ' . $fileId . ' from project ' . $projectId);
 
         notifyProjectLecturer(
             $db,
@@ -335,7 +318,7 @@ try {
 
     if ($action === 'post_comment' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($projectId <= 0) throw new RuntimeException('Invalid project');
-        $content = trim((string) ($_POST['comment_content'] ?? ''));
+        $content = clean_input($_POST['comment_content'] ?? '', 2000);
         if ($content === '') throw new RuntimeException('Comment cannot be empty');
 
         $encrypted = encryptData($content);

@@ -28,11 +28,11 @@
             <i class="bi bi-folder2-open"></i>
             <span>Projects</span>
         </a>
-        <a class="sidebar-link" href="#">
+        <a class="sidebar-link<?= basename($_SERVER['PHP_SELF']) === 'admin_submissions.php' ? ' active' : '' ?>" href="admin_submissions.php">
             <i class="bi bi-file-earmark-check-fill"></i>
             <span>Submissions</span>
         </a>
-        <a class="sidebar-link" href="#">
+        <a class="sidebar-link<?= basename($_SERVER['PHP_SELF']) === 'admin_programs.php' ? ' active' : '' ?>" href="admin_programs.php">
             <i class="bi bi-journal-bookmark-fill"></i>
             <span>Programs</span>
         </a>
@@ -40,11 +40,11 @@
             <i class="bi bi-bar-chart-line-fill"></i>
             <span>Reports</span>
         </a>
-        <a class="sidebar-link" href="#">
+        <a class="sidebar-link<?= basename($_SERVER['PHP_SELF']) === 'admin_finance.php' ? ' active' : '' ?>" href="admin_finance.php">
             <i class="bi bi-cash-coin"></i>
             <span>Finance</span>
         </a>
-        <a class="sidebar-link" href="#">
+        <a class="sidebar-link<?= basename($_SERVER['PHP_SELF']) === 'admin_settings.php' ? ' active' : '' ?>" href="admin_settings.php">
             <i class="bi bi-gear-fill"></i>
             <span>Settings</span>
         </a>

@@ -10,9 +10,13 @@ if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== tru
 
 require_once __DIR__ . '/../database/db.php';
 require_once __DIR__ . '/../database/encryption.php';
+require_once __DIR__ . '/../includes/security.php';
+
+require_role(['admin']);
 
 // Handle form submissions
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+    validate_csrf_token();
     if (isset($_POST['admin_action'])) {
         $action = $_POST['admin_action'];
 
@@ -27,6 +31,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             if ($name && $email && $password && $staff_id && $department) {
                 try {
                     $db->beginTransaction();
+                    validate_password_policy($password);
 
                     // Check if email already exists
                     $stmt = $db->prepare("SELECT COUNT(*) FROM users WHERE email_hash = ?");
@@ -48,7 +53,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                         encryptData($name),
                         hashEmail($email),
                         encryptData($email),
-                        password_hash($password, PASSWORD_DEFAULT),
+                        hash_password($password),
                         $_SESSION['user_id']
                     ]);
                     $user_id = $db->lastInsertId();
@@ -58,6 +63,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     $stmt->execute([$user_id, $staff_id, $department]);
 
                     $db->commit();
+                    audit_log($db, (int) $_SESSION['user_id'], 'User Creation', 'Created lecturer user ' . $email);
                     $_SESSION['admin_flash'] = 'Lecturer created successfully';
                     $_SESSION['admin_flash_type'] = 'success';
                 } catch (Exception $e) {
@@ -120,6 +126,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     $stmt->execute([$staff_id, $department, $lecturer_id]);
 
                     $db->commit();
+                    audit_log($db, (int) $_SESSION['user_id'], 'User Modification', 'Updated lecturer user ' . $user_id);
                     $_SESSION['admin_flash'] = 'Lecturer updated successfully';
                     $_SESSION['admin_flash_type'] = 'success';
                 } catch (Exception $e) {
@@ -151,6 +158,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     }
 
                     $db->commit();
+                    audit_log($db, (int) $_SESSION['user_id'], 'User Modification', 'Deleted lecturer user ' . $user_id);
                     $_SESSION['admin_flash'] = 'Lecturer deleted successfully';
                     $_SESSION['admin_flash_type'] = 'success';
                 } catch (Exception $e) {
@@ -182,7 +190,7 @@ foreach ($lecturers as &$lecturer) {
 }
 unset($lecturer);
 
-$adminName = $_SESSION['admin_name'] ?? 'Admin';
+$adminName = $_SESSION['user_name'] ?? 'Admin';
 $adminInitial = strtoupper(substr($adminName, 0, 1));
 $adminFlash = $_SESSION['admin_flash'] ?? '';
 $adminFlashType = $_SESSION['admin_flash_type'] ?? 'info';
@@ -285,6 +293,7 @@ require __DIR__ . '/admin_header.php';
 <div class="modal fade" id="addLecturerModal" tabindex="-1" aria-labelledby="addLecturerModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <form class="modal-content" method="post">
+            <?= csrf_field() ?>
             <div class="modal-header">
                 <div>
                     <h2 class="modal-title h5 fw-bold" id="addLecturerModalLabel">Add Lecturer Account</h2>
@@ -330,6 +339,7 @@ require __DIR__ . '/admin_header.php';
 <div class="modal fade" id="editLecturerModal<?= $lecturer['lecturer_id'] ?>" tabindex="-1" aria-labelledby="editLecturerModalLabel<?= $lecturer['lecturer_id'] ?>" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <form class="modal-content" method="post">
+            <?= csrf_field() ?>
             <div class="modal-header">
                 <div>
                     <h2 class="modal-title h5 fw-bold" id="editLecturerModalLabel<?= $lecturer['lecturer_id'] ?>">Edit Lecturer</h2>
@@ -404,6 +414,7 @@ require __DIR__ . '/admin_header.php';
             <div class="modal-footer">
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
                 <form method="post" class="d-inline">
+                    <?= csrf_field() ?>
                     <input type="hidden" name="admin_action" value="delete_lecturer">
                     <input type="hidden" name="lecturer_id" value="<?= $lecturer['lecturer_id'] ?>">
                     <button type="submit" class="btn btn-danger fw-bold">Yes, Permanently Delete</button>

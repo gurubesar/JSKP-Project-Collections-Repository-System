@@ -1,15 +1,9 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-
 require_once __DIR__ . '/../database/db.php';
 require_once __DIR__ . '/../database/encryption.php';
+require_once __DIR__ . '/../includes/security.php';
 
-if (!isset($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'student') {
-    header('Location: ../public/login.php');
-    exit;
-}
+require_role(['student']);
 
 $studentId = (int) ($_SESSION['user_id'] ?? 0);
 $projectId = (int) ($_GET['project_id'] ?? 0);
@@ -272,10 +266,11 @@ require_once __DIR__ . '/student_header.php';
             <div class="card border-utm rounded-4 p-4 shadow-sm">
                 <h2 class="h5 mb-3">Upload New File</h2>
                 <form action="student_actions.php?action=upload_file&project_id=<?= $projectId ?>" method="post" enctype="multipart/form-data">
+                    <?= csrf_field() ?>
                     <div class="mb-3">
-                        <label class="form-label">Select PDF file</label>
-                        <input type="file" name="project_file" class="form-control" accept="application/pdf" required>
-                        <div class="form-text">Please submit only PDF files (max 200 MB).</div>
+                        <label class="form-label">Select repository file</label>
+                        <input type="file" name="project_file" class="form-control" accept=".pdf,.docx,.pptx,.zip,application/pdf,application/zip,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation" required>
+                        <div class="form-text">Allowed formats: PDF, DOCX, PPTX, or ZIP (max 200 MB).</div>
                     </div>
                     <button class="btn btn-utm" type="submit">Upload</button>
                 </form>
@@ -286,6 +281,7 @@ require_once __DIR__ . '/student_header.php';
             <div class="card border-utm rounded-4 p-4 shadow-sm">
                 <h2 class="h5 mb-3">Upload Project Poster</h2>
                 <form action="student_actions.php?action=upload_poster&project_id=<?= $projectId ?>" method="post" enctype="multipart/form-data">
+                    <?= csrf_field() ?>
                     <div class="mb-3">
                         <label class="form-label">Select poster file</label>
                         <input type="file" name="project_poster" class="form-control" accept="image/png,image/jpeg,image/webp" required>
@@ -324,7 +320,7 @@ require_once __DIR__ . '/student_header.php';
                     </div>
                     <div class="d-flex gap-2">
                         <?php if ($generatedProposal['file_path']): ?>
-                            <a href="<?= htmlspecialchars($generatedProposal['file_path']) ?>" class="btn btn-outline-secondary btn-sm">Download</a>
+                            <a href="../public/download.php?file_id=<?= (int) $generatedProposal['file_id'] ?>" class="btn btn-outline-secondary btn-sm">Download</a>
                         <?php endif; ?>
                         <?php if ((int) $generatedProposal['uploaded_by'] === (int) ($_SESSION['user_id'] ?? 0)): ?>
                             <button
@@ -421,7 +417,7 @@ require_once __DIR__ . '/student_header.php';
                                 <div class="col-auto">
                                     <div class="d-flex flex-wrap gap-2 justify-content-end">
                                         <?php if ($filePath): ?>
-                                            <a href="<?= htmlspecialchars($filePath) ?>" class="btn btn-outline-secondary btn-sm">Download</a>
+                                            <a href="../public/download.php?file_id=<?= (int) $file['file_id'] ?>" class="btn btn-outline-secondary btn-sm">Download</a>
                                         <?php endif; ?>
                                         <?php if ((int) ($file['uploaded_by'] ?? 0) === (int) ($_SESSION['user_id'] ?? 0)): ?>
                                             <button
@@ -522,6 +518,7 @@ require_once __DIR__ . '/student_header.php';
                                                         <ul class="dropdown-menu dropdown-menu-end">
                                                             <li>
                                                                 <form action="student_actions.php?action=delete_comment&project_id=<?= $projectId ?>" method="post" class="m-0">
+                                                                    <?= csrf_field() ?>
                                                                     <input type="hidden" name="comment_id" value="<?= (int) $base['comment_id'] ?>">
                                                                     <input type="hidden" name="delete_mode" value="me">
                                                                     <button type="submit" class="dropdown-item">Delete for me</button>
@@ -530,6 +527,7 @@ require_once __DIR__ . '/student_header.php';
                                                             <?php if ((int) ($base['author_id'] ?? 0) === $studentId): ?>
                                                                 <li>
                                                                     <form action="student_actions.php?action=delete_comment&project_id=<?= $projectId ?>" method="post" class="m-0">
+                                                                        <?= csrf_field() ?>
                                                                         <input type="hidden" name="comment_id" value="<?= (int) $base['comment_id'] ?>">
                                                                         <input type="hidden" name="delete_mode" value="all">
                                                                         <button type="submit" class="dropdown-item text-danger">Delete for all</button>
@@ -555,6 +553,7 @@ require_once __DIR__ . '/student_header.php';
                                                             <ul class="dropdown-menu dropdown-menu-end">
                                                                 <li>
                                                                     <form action="student_actions.php?action=delete_comment&project_id=<?= $projectId ?>" method="post" class="m-0">
+                                                                        <?= csrf_field() ?>
                                                                         <input type="hidden" name="comment_id" value="<?= (int) $reply['comment_id'] ?>">
                                                                         <input type="hidden" name="delete_mode" value="me">
                                                                         <button type="submit" class="dropdown-item">Delete for me</button>
@@ -563,6 +562,7 @@ require_once __DIR__ . '/student_header.php';
                                                                 <?php if ((int) ($reply['author_id'] ?? 0) === $studentId): ?>
                                                                     <li>
                                                                         <form action="student_actions.php?action=delete_comment&project_id=<?= $projectId ?>" method="post" class="m-0">
+                                                                            <?= csrf_field() ?>
                                                                             <input type="hidden" name="comment_id" value="<?= (int) $reply['comment_id'] ?>">
                                                                             <input type="hidden" name="delete_mode" value="all">
                                                                             <button type="submit" class="dropdown-item text-danger">Delete for all</button>
@@ -577,6 +577,7 @@ require_once __DIR__ . '/student_header.php';
                                         <?php endif; ?>
                                         <div class="reply-box mt-4 pt-3 border-top">
                                             <form action="student_actions.php?action=post_comment&project_id=<?= $projectId ?>" method="post">
+                                                <?= csrf_field() ?>
                                                 <label class="form-label mb-2">Reply to lecturer</label>
                                                 <textarea name="comment_content" class="form-control" rows="3" placeholder="Write a polite reply to your lecturer..." required></textarea>
                                                 <div class="d-flex justify-content-end mt-2">
@@ -604,6 +605,7 @@ require_once __DIR__ . '/student_header.php';
 <div class="modal fade" id="generateProposalModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-xl modal-dialog-centered">
     <form class="modal-content" method="post" action="student_actions.php?action=generate_proposal&project_id=<?= $projectId ?>">
+      <?= csrf_field() ?>
       <div class="modal-header">
         <h5 class="modal-title">Generate Project Proposal</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -721,6 +723,7 @@ require_once __DIR__ . '/student_header.php';
       <div class="modal-footer">
         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
         <form id="deleteFileConfirmForm" method="post" action="">
+            <?= csrf_field() ?>
           <input type="hidden" name="file_id" id="confirmFileId" value="">
           <button type="submit" class="btn btn-danger">Delete File</button>
         </form>

@@ -1,6 +1,6 @@
 <?php
-session_start();
-session_regenerate_id(true); // Prevent session fixation
+require __DIR__ . '/../includes/security.php';
+secure_session_start();
 require __DIR__ . '/../database/db.php';
 
 try {
@@ -17,11 +17,13 @@ $error = '';
  
  
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = trim($_POST['email'] ?? '');
-    $password = trim($_POST['password'] ?? '');
+    $email = clean_input($_POST['email'] ?? '', 255);
+    $password = $_POST['password'] ?? '';
 
     if ($email === '' || $password === '') {
         $error = 'Please enter both email and password.';
+    } elseif (strlen($password) < 8) {
+        $error = 'Password must be at least 8 characters long.';
     } else {
         try {
             $emailHash = hashEmail($email);
@@ -30,9 +32,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if ($user && password_verify($password, $user['password_hash'])) {
+                session_regenerate_id(true);
                 $_SESSION['user_id'] = $user['user_id'];
                 $_SESSION['user_name'] = decryptData($user['name_encrypted']);
                 $_SESSION['user_role'] = $user['role'];
+                $_SESSION['last_activity'] = time();
+                $_SESSION['session_regenerated_at'] = time();
+
+                audit_log($db, (int) $user['user_id'], 'Login', 'Successful login for role ' . $user['role']);
 
                 if ($user['role'] === 'admin') {
                     $_SESSION['admin_logged_in'] = true;
@@ -51,8 +58,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     exit;
                 }
             }
+            audit_log($db, null, 'Login', 'Failed login attempt for ' . $email);
+            $error = 'Invalid email or password.';
         } catch (PDOException $e) {
-            $error = 'Database error: ' . $e->getMessage();
+            $error = 'Unable to sign in right now.';
         }
     }
 }
@@ -206,14 +215,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             transform: translateY(-1px);
         }
 
-        .login-note {
-            margin-top: 26px;
-            color: var(--utm-muted);
-            font-size: 0.9rem;
-            text-align: center;
-            line-height: 1.6;
-        }
-
         .error-msg {
             color: #b22222;
             background: #fdecea;
@@ -239,18 +240,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <a class="public-link" href="posters.php">View public project posters</a>
 
             <?php if ($error): ?>
-                <div class="error-msg"><?= htmlspecialchars($error) ?></div>
+                <div class="error-msg"><?= e($error) ?></div>
             <?php endif; ?>
 
             <form id="loginForm" class="login-form" method="post" action="login.php">
                 <div class="form-row">
                     <label for="email">Email</label>
-                    <input id="email" name="email" class="form-control" type="email" value="admin@example.com" required>
+                    <input id="email" name="email" class="form-control" type="email" autocomplete="email" required>
                 </div>
 
                 <div class="form-row">
                     <label for="password">Password</label>
-                    <input id="password" name="password" class="form-control" type="password" value="password" required>
+                    <input id="password" name="password" class="form-control" type="password" minlength="8" autocomplete="current-password" required>
                 </div>
 
                 <div class="form-footer">
@@ -258,14 +259,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <button type="submit" class="btn btn-login">Login</button>
                 </div>
             </form>
-
-            <div class="login-note">
-                <strong>Demo Accounts:</strong><br>
-                <strong>Admin:</strong> admin@example.com<br>
-                <strong>Lecturer:</strong> lect@example.com<br>
-                <strong>Student:</strong> student@example.com<br>
-                <strong>Password:</strong> password
-            </div>
         </div>
     </div>
 </body>

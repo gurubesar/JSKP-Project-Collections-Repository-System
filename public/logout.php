@@ -1,13 +1,12 @@
 <?php
-session_start();
-$_SESSION = [];
-if (ini_get('session.use_cookies')) {
-    $params = session_get_cookie_params();
-    setcookie(session_name(), '', time() - 42000,
-        $params['path'], $params['domain'],
-        $params['secure'], $params['httponly']
-    );
+require_once __DIR__ . '/../includes/security.php';
+require_once __DIR__ . '/../database/db.php';
+
+secure_session_start();
+$userId = isset($_SESSION['user_id']) ? (int) $_SESSION['user_id'] : null;
+if ($userId) {
+    audit_log($db, $userId, 'Logout', 'User logged out');
 }
-session_destroy();
+destroy_secure_session();
 header('Location: login.php');
 exit;

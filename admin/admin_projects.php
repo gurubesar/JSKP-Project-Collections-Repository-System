@@ -16,6 +16,9 @@ if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== tru
 
 require_once __DIR__ . '/../database/db.php';
 require_once __DIR__ . '/../database/encryption.php';
+require_once __DIR__ . '/../includes/security.php';
+
+require_role(['admin']);
 
 function adminProjectDecrypt(?string $value): string
 {
@@ -87,6 +90,7 @@ function adminProjectSyncMembers(PDO $db, int $projectId, int $lecturerId, array
 }
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+    validate_csrf_token();
     $action = $_POST['admin_action'] ?? '';
 
     if ($action === 'create_project') {
@@ -130,6 +134,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             adminProjectSyncMembers($db, $projectId, $lecturerId, $validStudentIds);
 
             $db->commit();
+            audit_log($db, (int) $_SESSION['user_id'], 'Repository Upload', 'Created project repository ' . $projectId);
             $_SESSION['admin_flash'] = adminProjectCode($projectId) . ' created successfully.';
             $_SESSION['admin_flash_type'] = 'success';
         } catch (Throwable $error) {
@@ -186,6 +191,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             adminProjectSyncMembers($db, $projectId, $lecturerId, $validStudentIds);
 
             $db->commit();
+            audit_log($db, (int) $_SESSION['user_id'], 'Repository Update', 'Updated project repository ' . $projectId);
             $_SESSION['admin_flash'] = adminProjectCode($projectId) . ' updated successfully.';
             $_SESSION['admin_flash_type'] = 'success';
         } catch (Throwable $error) {
@@ -220,6 +226,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 $stmt->execute([$projectId]);
 
                 $db->commit();
+                audit_log($db, (int) $_SESSION['user_id'], 'Repository Delete', 'Deleted project repository ' . $projectId);
                 $_SESSION['admin_flash'] = adminProjectCode($projectId) . ' deleted successfully.';
                 $_SESSION['admin_flash_type'] = 'success';
             } catch (Throwable $error) {
@@ -327,7 +334,7 @@ foreach ($projectRows as $row) {
     ];
 }
 
-$adminName = $_SESSION['admin_name'] ?? $_SESSION['user_name'] ?? 'Admin';
+$adminName = $_SESSION['user_name'] ?? 'Admin';
 $adminInitial = strtoupper(substr($adminName, 0, 1)) ?: 'A';
 $adminFlash = $_SESSION['admin_flash'] ?? '';
 $adminFlashType = $_SESSION['admin_flash_type'] ?? 'info';
@@ -457,6 +464,7 @@ require __DIR__ . '/admin_header.php';
 <div class="modal fade" id="addProjectModal" tabindex="-1" aria-labelledby="addProjectModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <form class="modal-content" method="post">
+            <?= csrf_field() ?>
             <div class="modal-header">
                 <div>
                     <h2 class="modal-title h5 fw-bold" id="addProjectModalLabel">Add Project</h2>
@@ -526,6 +534,7 @@ $selectedStudentIds = array_map(
 <div class="modal fade" id="editProjectModal<?= $project['id'] ?>" tabindex="-1" aria-labelledby="editProjectModalLabel<?= $project['id'] ?>" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <form class="modal-content" method="post">
+            <?= csrf_field() ?>
             <div class="modal-header">
                 <div>
                     <h2 class="modal-title h5 fw-bold" id="editProjectModalLabel<?= $project['id'] ?>">Edit Project</h2>
@@ -621,6 +630,7 @@ $selectedStudentIds = array_map(
             <div class="modal-footer">
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
                 <form method="post" class="d-inline">
+                    <?= csrf_field() ?>
                     <input type="hidden" name="admin_action" value="delete_project">
                     <input type="hidden" name="project_id" value="<?= h($project['id']) ?>">
                     <button type="submit" class="btn btn-danger fw-bold">Yes, Permanently Delete</button>

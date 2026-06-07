@@ -52,12 +52,12 @@ try {
 
     // Insert encrypted sample projects
     $insertProject = $db->prepare(
-        'INSERT INTO projects (project_id, title_encrypted, description_encrypted, category_encrypted, lecturer_id, study_year)
-         VALUES (?, ?, ?, ?, ?, ?)
+        'INSERT INTO projects (project_id, title_encrypted, description_encrypted, category_encrypted, lecturer_id, study_year, progress_percentage)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT (project_id) DO NOTHING'
     );
-    $insertProject->execute([101, encryptData('JSKP System A'), encryptData('Project A description'), encryptData('Web Application'), 2, 3]);
-    $insertProject->execute([102, encryptData('JSKP System B'), encryptData('Project B description'), encryptData('Research Project'), 2, 3]);
+    $insertProject->execute([101, encryptData('JSKP System A'), encryptData('Project A description'), encryptData('Web Application'), 2, 3, 0]);
+    $insertProject->execute([102, encryptData('JSKP System B'), encryptData('Project B description'), encryptData('Research Project'), 2, 3, 0]);
 
     // Insert sample project members
     $insertMember = $db->prepare(

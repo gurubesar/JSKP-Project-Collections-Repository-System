@@ -3,13 +3,13 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-if (!isset($_SESSION['lecturer_logged_in']) || $_SESSION['lecturer_logged_in'] !== true) {
+if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'student') {
     header('Location: ../public/login.php');
     exit;
 }
 
-$lecturerHeaderSkipDashboardData = true;
-require_once __DIR__ . '/lecturer_header.php';
+$studentHeaderSkipDashboardData = true;
+require_once __DIR__ . '/student_header.php';
 
 $flashMessage = '';
 $flashType = 'success';
@@ -18,19 +18,19 @@ $notificationId = (int) ($_GET['id'] ?? 0);
 $returnUrl = $_GET['return'] ?? basename($_SERVER['PHP_SELF']);
 
 $allowedReturnUrl = $returnUrl;
-if (!preg_match('#^(\/|\.\/|\.\.\/|lecturer\/|[A-Za-z0-9_\-\.]+).*#i', $allowedReturnUrl)) {
+if (!preg_match('#^(\/|\.\/|\.\.\/|student\/|[A-Za-z0-9_\-\.]+).*#i', $allowedReturnUrl)) {
     $allowedReturnUrl = basename($_SERVER['PHP_SELF']);
 }
 
 try {
     if ($notificationAction === 'mark_read' && $notificationId > 0) {
         $update = $db->prepare('UPDATE notifications SET is_read = 1 WHERE notification_id = ? AND recipient_user_id = ?');
-        $update->execute([$notificationId, $lecturerId]);
+        $update->execute([$notificationId, $studentId]);
         header('Location: ' . $allowedReturnUrl);
         exit;
     } elseif ($notificationAction === 'mark_all_read') {
         $update = $db->prepare('UPDATE notifications SET is_read = 1 WHERE recipient_user_id = ?');
-        $update->execute([$lecturerId]);
+        $update->execute([$studentId]);
         header('Location: ' . $allowedReturnUrl);
         exit;
     }
@@ -41,7 +41,7 @@ try {
 
 $notifications = [];
 try {
-    $notifications = fetchLecturerNotifications($db, $lecturerId, 50);
+    $notifications = fetchStudentNotifications($db, $studentId, 50);
 } catch (Throwable $error) {
     $flashMessage = 'Unable to load notifications.';
     $flashType = 'danger';
@@ -57,11 +57,11 @@ try {
 
             <section class="d-flex align-items-start justify-content-between flex-wrap gap-3 mb-4">
                 <div>
-                    <h1 class="h3 fw-bold mb-1" style="color:var(--lecturer-maroon);">Notifications</h1>
-                    <p class="text-muted mb-0">Review recent student activity and keep your project updates in sync.</p>
+                    <h1 class="h3 fw-bold mb-1" style="color:var(--student-sidebar);">Notifications</h1>
+                    <p class="text-muted mb-0">Review updates from lecturers and project status changes.</p>
                 </div>
                 <div>
-                    <a href="../lecturer/Lecturer_dashboard.php" class="btn btn-sm btn-outline-secondary">Back to dashboard</a>
+                    <a href="../student/student_dashboard.php" class="btn btn-sm btn-outline-secondary">Back to dashboard</a>
                     <a href="?action=mark_all_read&return=<?= rawurlencode($allowedReturnUrl) ?>" class="btn btn-sm btn-outline-primary">Mark all read</a>
                 </div>
             </section>

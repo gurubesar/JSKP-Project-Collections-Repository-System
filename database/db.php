@@ -61,28 +61,30 @@ function initializeDatabase(PDO $db): void
         : __DIR__ . '/schema.sql';
     $schema = file_get_contents($schemaFile);
     $db->exec($schema);
-    ensureProjectCategoryColumn($db);
+    ensureProjectColumns($db);
 }
 
-function ensureProjectCategoryColumn(PDO $db): void
+function ensureProjectColumns(PDO $db): void
 {
     try {
         $driver = $db->getAttribute(PDO::ATTR_DRIVER_NAME);
 
         if ($driver === 'sqlite') {
             $columns = $db->query("PRAGMA table_info(projects)")->fetchAll(PDO::FETCH_ASSOC);
-            foreach ($columns as $column) {
-                if (($column['name'] ?? '') === 'category_encrypted') {
-                    return;
-                }
-            }
+            $names = array_map(static fn($column) => $column['name'] ?? '', $columns);
 
-            $db->exec('ALTER TABLE projects ADD COLUMN category_encrypted TEXT');
+            if (!in_array('category_encrypted', $names, true)) {
+                $db->exec('ALTER TABLE projects ADD COLUMN category_encrypted TEXT');
+            }
+            if (!in_array('progress_percentage', $names, true)) {
+                $db->exec('ALTER TABLE projects ADD COLUMN progress_percentage INTEGER NOT NULL DEFAULT 0');
+            }
             return;
         }
 
         if ($driver === 'pgsql') {
             $db->exec('ALTER TABLE projects ADD COLUMN IF NOT EXISTS category_encrypted TEXT');
+            $db->exec('ALTER TABLE projects ADD COLUMN IF NOT EXISTS progress_percentage INTEGER NOT NULL DEFAULT 0');
             return;
         }
 
@@ -91,10 +93,14 @@ function ensureProjectCategoryColumn(PDO $db): void
             if (count($columns) === 0) {
                 $db->exec('ALTER TABLE projects ADD COLUMN category_encrypted TEXT NULL');
             }
+            $columns = $db->query("SHOW COLUMNS FROM projects LIKE 'progress_percentage'")->fetchAll(PDO::FETCH_ASSOC);
+            if (count($columns) === 0) {
+                $db->exec('ALTER TABLE projects ADD COLUMN progress_percentage INTEGER NOT NULL DEFAULT 0');
+            }
         }
     } catch (Throwable $error) {
         // Keep the app available if the table does not exist yet; initializeDatabase creates it.
     }
 }
 
-ensureProjectCategoryColumn($db);
+ensureProjectColumns($db);

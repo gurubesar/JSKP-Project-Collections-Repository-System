@@ -201,6 +201,37 @@ try {
         exit;
     }
 
+    if ($action === 'update_progress' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        if ($projectId <= 0) {
+            throw new RuntimeException('Invalid project');
+        }
+
+        $progress = (int) ($_POST['progress_percentage'] ?? -1);
+        if ($progress < 0 || $progress > 100) {
+            throw new RuntimeException('Please submit a progress percentage between 0 and 100.');
+        }
+
+        $memberStmt = $db->prepare('SELECT COUNT(*) FROM project_members WHERE project_id = ? AND user_id = ?');
+        $memberStmt->execute([$projectId, $studentId]);
+        if ((int) $memberStmt->fetchColumn() === 0) {
+            throw new RuntimeException('You are not authorized to update this project.');
+        }
+
+        $update = $db->prepare('UPDATE projects SET progress_percentage = ? WHERE project_id = ?');
+        $update->execute([$progress, $projectId]);
+
+        notifyProjectLecturer(
+            $db,
+            $projectId,
+            $studentId,
+            sprintf('Student %s updated progress for project %s to %d%%.', $_SESSION['user_name'] ?? 'A student', 'UTM-FYP-' . str_pad((string) $projectId, 4, '0', STR_PAD_LEFT), $progress)
+        );
+
+        set_flash('Progress updated to ' . $progress . '%.');
+        header('Location: ../student/student_project.php?project_id=' . $projectId . '#progressSection');
+        exit;
+    }
+
     if ($action === 'delete_file' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $fileId = (int) ($_POST['file_id'] ?? 0);
         if ($fileId <= 0) throw new RuntimeException('Invalid file id');

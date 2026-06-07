@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS projects (
   category_encrypted TEXT,
   lecturer_id INTEGER REFERENCES users(user_id),
   study_year INTEGER CHECK (study_year BETWEEN 1 AND 5),
+  progress_percentage INTEGER NOT NULL DEFAULT 0,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 

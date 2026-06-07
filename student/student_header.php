@@ -29,13 +29,38 @@ function decryptValue(?string $value): string
     }
 }
 
+function fetchStudentNotifications(PDO $db, int $studentId, int $limit = 8): array
+{
+    $stmt = $db->prepare(
+        'SELECT n.notification_id, n.message, n.is_read, n.created_at, p.title_encrypted AS project_title, u.name_encrypted AS sender_name
+         FROM notifications n
+         LEFT JOIN projects p ON p.project_id = n.project_id
+         LEFT JOIN users u ON u.user_id = n.sender_user_id
+         WHERE n.recipient_user_id = ?
+         ORDER BY n.created_at DESC
+         LIMIT ?'
+    );
+    $stmt->bindValue(1, $studentId, PDO::PARAM_INT);
+    $stmt->bindValue(2, $limit, PDO::PARAM_INT);
+    $stmt->execute();
+
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+function countUnreadStudentNotifications(PDO $db, int $studentId): int
+{
+    $stmt = $db->prepare('SELECT COUNT(*) FROM notifications WHERE recipient_user_id = ? AND is_read = 0');
+    $stmt->execute([$studentId]);
+    return (int) $stmt->fetchColumn();
+}
+
 $studentId = (int) ($_SESSION['user_id'] ?? 0);
 $studentName = trim((string) ($_SESSION['user_name'] ?? 'Student'));
 
 $projects = [];
 try {
     $stmt = $db->prepare(
-        "SELECT p.project_id, p.title_encrypted, p.description_encrypted, p.category_encrypted, p.study_year, p.created_at,
+        "SELECT p.project_id, p.title_encrypted, p.description_encrypted, p.category_encrypted, p.study_year, p.progress_percentage, p.created_at,
                 u.name_encrypted AS lecturer_name,
                 (SELECT s.status FROM submissions s WHERE s.project_id = p.project_id ORDER BY s.submitted_at DESC LIMIT 1) AS submission_status,
                 (SELECT s.submitted_at FROM submissions s WHERE s.project_id = p.project_id ORDER BY s.submitted_at DESC LIMIT 1) AS submitted_at
@@ -59,7 +84,18 @@ $summary = [
     'pending' => 0,
     'approved' => 0,
     'rejected' => 0,
+    'average_progress' => 0,
 ];
+
+$studentNotifications = [];
+$studentUnreadNotificationCount = 0;
+try {
+    $studentNotifications = fetchStudentNotifications($db, $studentId, 8);
+    $studentUnreadNotificationCount = countUnreadStudentNotifications($db, $studentId);
+} catch (Throwable $error) {
+    $studentNotifications = [];
+    $studentUnreadNotificationCount = 0;
+}
 
 foreach ($projects as $project) {
     $status = $project['submission_status'] ?: 'pending';
@@ -70,6 +106,10 @@ foreach ($projects as $project) {
     } else {
         $summary['pending']++;
     }
+}
+
+if ($summary['total'] > 0) {
+    $summary['average_progress'] = (int) round(array_sum(array_map(static fn($project) => max(0, min(100, (int) ($project['progress_percentage'] ?? 0))), $projects)) / $summary['total']);
 }
 
 $statusLabel = static function (string $status): string {
@@ -306,6 +346,23 @@ $statusProgress = static function (string $status): int {
             box-shadow: var(--student-shadow);
         }
 
+        .notification-badge {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 6px;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            line-height: 18px;
+            background: #d63384;
+            color: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
         .profile-avatar {
             width: 42px;
             height: 42px;
@@ -354,8 +411,7 @@ $statusProgress = static function (string $status): int {
 
         .stat-card-total .stat-icon { background: rgba(128, 0, 32, 0.12); color: var(--student-sidebar); }
         .stat-card-pending .stat-icon { background: rgba(255, 193, 7, 0.15); color: #a16a15; }
-        .stat-card-approved .stat-icon { background: rgba(76, 175, 80, 0.15); color: #25732a; }
-        .stat-card-rejected .stat-icon { background: rgba(244, 67, 54, 0.15); color: #a1271d; }
+        .stat-card-approved .stat-icon { background: rgba(76, 175, 80, 0.15); color: #25732a; }        .stat-card-progress .stat-icon { background: rgba(56, 113, 207, 0.12); color: #165ca8; }        .stat-card-rejected .stat-icon { background: rgba(244, 67, 54, 0.15); color: #a1271d; }
 
         .stat-content h3 {
             margin: 0 0 6px;
@@ -457,6 +513,40 @@ $statusProgress = static function (string $status): int {
         .project-supervisor i {
             font-size: 1.1rem;
             color: var(--student-sidebar);
+        }
+
+        .project-progress {
+            display: grid;
+            gap: 10px;
+            padding: 16px;
+            border-radius: 18px;
+            background: rgba(128, 0, 32, 0.04);
+            border: 1px solid rgba(128, 0, 32, 0.08);
+        }
+
+        .project-progress-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.95rem;
+            color: var(--student-text);
+        }
+
+        .project-progress-track {
+            width: 100%;
+            height: 12px;
+            border-radius: 999px;
+            background: rgba(128, 0, 32, 0.12);
+            overflow: hidden;
+        }
+
+        .project-progress-fill {
+            height: 100%;
+            border-radius: 999px;
+            background: linear-gradient(135deg, #800020 0%, #d6a01d 100%);
+            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.12);
+            transition: width 0.4s ease;
         }
 
         .project-description {
@@ -628,9 +718,12 @@ $statusProgress = static function (string $status): int {
                     <strong><?= e($studentName) ?></strong>
                 </div>
                 <div class="d-flex align-items-center gap-2 gap-sm-3 ms-auto">
-                    <button type="button" class="icon-button" aria-label="Notifications">
+                    <a href="../student/student_notifications.php" class="icon-button position-relative text-decoration-none" aria-label="Notifications">
                         <i class="bi bi-bell"></i>
-                    </button>
+                        <?php if ($studentUnreadNotificationCount > 0): ?>
+                            <span class="notification-badge"><?= e($studentUnreadNotificationCount) ?></span>
+                        <?php endif; ?>
+                    </a>
                     <div class="profile-chip">
                         <div class="profile-avatar"><?= e(strtoupper(substr($studentName, 0, 1))) ?></div>
                         <div class="d-none d-sm-block pe-1">

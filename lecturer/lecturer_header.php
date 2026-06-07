@@ -70,6 +70,39 @@ if (!function_exists('countUnreadLecturerNotifications')) {
     }
 }
 
+if (!function_exists('createNotification')) {
+    function createNotification(PDO $db, int $recipientId, ?int $senderId, int $projectId, string $message, string $type = 'project_update'): void
+    {
+        try {
+            $stmt = $db->prepare('INSERT INTO notifications (recipient_user_id, sender_user_id, project_id, notification_type, message) VALUES (?, ?, ?, ?, ?)');
+            $stmt->execute([$recipientId, $senderId, $projectId, $type, $message]);
+        } catch (PDOException $error) {
+            // Keep the main flow working even if notification insert fails.
+        }
+    }
+}
+
+if (!function_exists('fetchProjectStudentIds')) {
+    function fetchProjectStudentIds(PDO $db, int $projectId): array
+    {
+        $stmt = $db->prepare('SELECT user_id FROM project_members WHERE project_id = ?');
+        $stmt->execute([$projectId]);
+        return array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+    }
+}
+
+if (!function_exists('notifyProjectStudents')) {
+    function notifyProjectStudents(PDO $db, int $projectId, int $senderId, string $message): void
+    {
+        foreach (fetchProjectStudentIds($db, $projectId) as $recipientId) {
+            if ($recipientId === $senderId) {
+                continue;
+            }
+            createNotification($db, $recipientId, $senderId, $projectId, $message);
+        }
+    }
+}
+
 if (!function_exists('updateSubmissionStatus')) {
     function updateSubmissionStatus(PDO $db, int $projectId, string $status): void
     {
@@ -97,6 +130,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         if ($projectId > 0 && lecturerOwnsProject($db, $lecturerId, $projectId)) {
             if ($action === 'approve') {
                 updateSubmissionStatus($db, $projectId, 'approved');
+                notifyProjectStudents(
+                    $db,
+                    $projectId,
+                    $lecturerId,
+                    sprintf('Your project %s has been approved by %s.', 'UTM-FYP-' . str_pad((string) $projectId, 4, '0', STR_PAD_LEFT), $lecturerName)
+                );
                 $flashMessage = 'Project submission approved.';
             } elseif ($action === 'reject') {
                 updateSubmissionStatus($db, $projectId, 'rejected');
@@ -108,12 +147,24 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 } else {
                     $flashMessage = 'Project submission rejected.';
                 }
+                notifyProjectStudents(
+                    $db,
+                    $projectId,
+                    $lecturerId,
+                    sprintf('Your project %s has been rejected by %s. Review the feedback and resubmit.', 'UTM-FYP-' . str_pad((string) $projectId, 4, '0', STR_PAD_LEFT), $lecturerName)
+                );
                 $flashType = 'danger';
             } elseif ($action === 'comment') {
                 $comment = trim((string) ($_POST['comment'] ?? ''));
                 if ($comment !== '') {
                     $stmt = $db->prepare('INSERT INTO comments (project_id, user_id, content_encrypted) VALUES (?, ?, ?)');
                     $stmt->execute([$projectId, $lecturerId, encryptData($comment)]);
+                    notifyProjectStudents(
+                        $db,
+                        $projectId,
+                        $lecturerId,
+                        sprintf('A lecturer has replied on your project %s.', 'UTM-FYP-' . str_pad((string) $projectId, 4, '0', STR_PAD_LEFT))
+                    );
                     $flashMessage = 'Feedback submitted.';
                 } else {
                     $flashMessage = 'Please enter feedback before submitting.';

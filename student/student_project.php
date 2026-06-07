@@ -49,7 +49,7 @@ $statusClasses = ['pending' => 'status-pending', 'approved' => 'status-approved'
 
 try {
     $stmt = $db->prepare(
-        "SELECT p.project_id, p.title_encrypted, p.description_encrypted, p.category_encrypted, p.study_year, p.created_at,
+        "SELECT p.project_id, p.title_encrypted, p.description_encrypted, p.category_encrypted, p.study_year, p.progress_percentage, p.created_at,
                 p.lecturer_id, u.name_encrypted AS lecturer_name,
                 latest.status AS latest_status, latest.submitted_at AS latest_submitted_at
          FROM projects p
@@ -77,6 +77,7 @@ try {
     $supervisor = student_project_decrypt($row['lecturer_name'] ?? '');
     $currentStatus = $row['latest_status'] ?: 'pending';
     $latestSubmittedAt = $row['latest_submitted_at'] ?? null;
+    $progressPercentage = max(0, min(100, (int) ($row['progress_percentage'] ?? 0)));
 
     $memberStmt = $db->prepare(
         "SELECT u.user_id, u.name_encrypted, u.role AS user_role, pm.role AS project_role
@@ -257,6 +258,45 @@ require_once __DIR__ . '/student_header.php';
                 </div>
             </div>
         </div>
+        <div id="progressSection" class="card border-utm rounded-4 p-4 shadow-sm mb-4">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-3">
+                <div>
+                    <h2 class="h5 mb-1">Project Progress</h2>
+                    <p class="text-muted mb-0">Report your current completion percentage so your lecturer can stay informed.</p>
+                </div>
+                <div class="text-end">
+                    <div class="d-inline-flex align-items-baseline gap-2">
+                        <span class="fs-3 fw-bold"><?= htmlspecialchars($progressPercentage) ?>%</span>
+                    </div>
+                    <small class="text-muted">Latest student update</small>
+                </div>
+            </div>
+            <div class="mb-4">
+                <div class="progress rounded-pill" style="height: 18px; background: rgba(128,0,32,.08);">
+                    <div id="progressBar" class="progress-bar rounded-pill bg-utm-maroon" role="progressbar" style="width: <?= htmlspecialchars($progressPercentage) ?>%;" aria-valuenow="<?= htmlspecialchars($progressPercentage) ?>" aria-valuemin="0" aria-valuemax="100"></div>
+                </div>
+                <div class="d-flex justify-content-between small text-muted mt-2">
+                    <span>0%</span><span>50%</span><span>100%</span>
+                </div>
+            </div>
+            <form action="student_actions.php?action=update_progress&project_id=<?= $projectId ?>" method="post" class="row g-3 align-items-center">
+                <div class="col-12 col-md-8">
+                    <label for="progressInput" class="form-label fw-semibold">Your progress</label>
+                    <input id="progressInput" type="range" name="progress_percentage" min="0" max="100" step="1" value="<?= htmlspecialchars($progressPercentage) ?>" class="form-range">
+                </div>
+                <div class="col-12 col-md-4">
+                    <div class="d-flex align-items-center justify-content-between gap-3">
+                        <div>
+                            <div class="small text-muted">Set completion</div>
+                            <div id="progressValue" class="fs-4 fw-bold"><?= htmlspecialchars($progressPercentage) ?>%</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-utm">Save progress update</button>
+                </div>
+            </form>
+        </div>
 
         <div id="uploadBox" class="collapse mb-4">
             <div class="card border-utm rounded-4 p-4 shadow-sm">
@@ -265,7 +305,7 @@ require_once __DIR__ . '/student_header.php';
                     <div class="mb-3">
                         <label class="form-label">Select PDF file</label>
                         <input type="file" name="project_file" class="form-control" accept="application/pdf" required>
-                        <div class=\"form-text\">Please submit only PDF files (max 200 MB).</div>
+                        <div class="form-text">Please submit only PDF files (max 200 MB).</div>
                     </div>
                     <button class="btn btn-utm" type="submit">Upload</button>
                 </form>
@@ -686,6 +726,22 @@ window.addEventListener('DOMContentLoaded', () => {
   if (toast) {
     requestAnimationFrame(() => toast.classList.add('show'));
     setTimeout(() => hidePageToast(), 4200);
+  }
+
+  const progressInput = document.getElementById('progressInput');
+  const progressValue = document.getElementById('progressValue');
+  const progressBar = document.getElementById('progressBar');
+
+  if (progressInput && progressValue && progressBar) {
+    const updateProgressDisplay = () => {
+      const value = progressInput.value;
+      progressValue.textContent = `${value}%`;
+      progressBar.style.width = `${value}%`;
+      progressBar.setAttribute('aria-valuenow', String(value));
+    };
+
+    progressInput.addEventListener('input', updateProgressDisplay);
+    updateProgressDisplay();
   }
 });
 </script>

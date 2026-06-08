@@ -28,25 +28,9 @@
             <i class="bi bi-folder2-open"></i>
             <span>Projects</span>
         </a>
-        <a class="sidebar-link" href="#">
-            <i class="bi bi-file-earmark-check-fill"></i>
-            <span>Submissions</span>
-        </a>
-        <a class="sidebar-link" href="#">
-            <i class="bi bi-journal-bookmark-fill"></i>
-            <span>Programs</span>
-        </a>
         <a class="sidebar-link<?= basename($_SERVER['PHP_SELF']) === 'report.php' ? ' active' : '' ?>" href="report.php">
             <i class="bi bi-bar-chart-line-fill"></i>
             <span>Reports</span>
-        </a>
-        <a class="sidebar-link" href="#">
-            <i class="bi bi-cash-coin"></i>
-            <span>Finance</span>
-        </a>
-        <a class="sidebar-link" href="#">
-            <i class="bi bi-gear-fill"></i>
-            <span>Settings</span>
         </a>
     </nav>
 </aside>

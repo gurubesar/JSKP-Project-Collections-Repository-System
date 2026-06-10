@@ -131,7 +131,7 @@ $statusLabels = ['pending' => 'Pending', 'approved' => 'Approved', 'rejected' =>
 
 try {
     $stmt = $db->prepare(
-        "SELECT p.project_id, p.title_encrypted, p.description_encrypted, p.study_year, p.progress_percentage, p.created_at,
+        "SELECT p.project_id, p.title_encrypted, p.description_encrypted, p.study_year, p.created_at,
                 s.submission_id, s.submitted_at, s.status
          FROM projects p
          LEFT JOIN submissions s ON s.submission_id = (
@@ -194,7 +194,6 @@ try {
             'code'         => 'UTM-FYP-' . str_pad((string) $row['project_id'], 4, '0', STR_PAD_LEFT),
             'title'        => decryptValue($row['title_encrypted'] ?? '') ?: 'No data available',
             'study_year'   => $row['study_year'] ?? '',
-            'progress'     => max(0, min(100, (int) ($row['progress_percentage'] ?? 0))),
             'submitted_at' => $row['submitted_at'] ?? null,
             'status'       => $row['status'] ?: 'pending',
             'students'     => $students,
@@ -323,14 +322,6 @@ require_once __DIR__ . '/lecturer_header.php';
                                 </div>
                                 <div class="text-muted mb-1" style="font-size:.9rem;">Submitted: <?= e($submittedAt) ?></div>
                                 <div class="text-muted mb-2" style="font-size:.9rem;">Study Year: <?= $project['study_year'] !== '' ? e($project['study_year']) : 'N/A' ?></div>
-                                <div class="progress mb-3" style="height: 10px; border-radius: 999px; background: rgba(56, 74, 110, 0.08);">
-                                    <div class="progress-bar bg-success" role="progressbar" style="width: <?= e($project['progress']) ?>%;" aria-valuenow="<?= e($project['progress']) ?>" aria-valuemin="0" aria-valuemax="100"></div>
-                                </div>
-                                <div class="d-flex justify-content-between align-items-center mb-3" style="font-size:.82rem; color: #5b5f73;">
-                                    <span>Progress</span>
-                                    <span class="fw-semibold"><?= e($project['progress']) ?>%</span>
-                                </div>
-
                                 <!-- Files -->
                                 <?php if ($project['files']): ?>
                                 <div class="files-section">

@@ -23,7 +23,6 @@ require_once __DIR__ . '/student_header.php';
                     $supervisor = decryptValue($project['lecturer_name'] ?? '');
                     $projectStatus = $project['submission_status'] ?: 'pending';
                     $statusText = $statusLabel($projectStatus);
-                    $progress = $statusProgress($projectStatus);
                     $created = $project['created_at'] ? date('d M Y', strtotime($project['created_at'])) : 'Unknown';
                     $submittedAt = $project['submitted_at'] ? date('d M Y', strtotime($project['submitted_at'])) : 'Not submitted yet';
                     $projectCode = 'UTM-FYP-' . str_pad((string) $project['project_id'], 4, '0', STR_PAD_LEFT);

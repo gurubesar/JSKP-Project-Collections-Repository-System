@@ -86,6 +86,57 @@ function adminProjectSyncMembers(PDO $db, int $projectId, int $lecturerId, array
     }
 }
 
+function adminProjectRenderStudentPicker(string $pickerId, array $studentRows, array $selectedStudentIds = []): void
+{
+    $selectedStudentIds = array_map('intval', $selectedStudentIds);
+    $courses = array_values(array_unique(array_filter(array_map(static fn($student): string => (string) ($student['course'] ?? ''), $studentRows))));
+    natcasesort($courses);
+    $selectedCount = count($selectedStudentIds);
+    ?>
+    <div class="student-picker" data-student-picker>
+        <div class="student-picker-tools">
+            <div class="student-picker-title">
+                <span>Student List</span>
+                <small data-student-count><?= htmlspecialchars((string) $selectedCount, ENT_QUOTES, 'UTF-8') ?> selected</small>
+            </div>
+            <div class="student-picker-controls">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                    <input class="form-control" type="search" placeholder="Search student" aria-label="Search students" data-student-search>
+                </div>
+                <select class="form-select form-select-sm" aria-label="Filter students by course" data-student-filter>
+                    <option value="">All courses</option>
+                    <?php foreach ($courses as $course): ?>
+                        <option value="<?= htmlspecialchars(strtolower($course), ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($course, ENT_QUOTES, 'UTF-8') ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+        </div>
+        <div class="student-checkbox-list" id="<?= htmlspecialchars($pickerId, ENT_QUOTES, 'UTF-8') ?>">
+            <?php foreach ($studentRows as $student): ?>
+                <?php
+                $studentId = (int) ($student['user_id'] ?? 0);
+                $name = (string) ($student['name'] ?? 'Unnamed Student');
+                $matric = (string) ($student['matric_no'] ?? '');
+                $course = (string) ($student['course'] ?? '');
+                $haystack = strtolower($name . ' ' . $matric . ' ' . $course);
+                $checked = in_array($studentId, $selectedStudentIds, true);
+                ?>
+                <label class="student-check-row" data-student-option data-search="<?= htmlspecialchars($haystack, ENT_QUOTES, 'UTF-8') ?>" data-course="<?= htmlspecialchars(strtolower($course), ENT_QUOTES, 'UTF-8') ?>">
+                    <input class="form-check-input" type="checkbox" name="student_ids[]" value="<?= htmlspecialchars((string) $studentId, ENT_QUOTES, 'UTF-8') ?>" <?= $checked ? 'checked' : '' ?>>
+                    <span class="student-check-main">
+                        <span class="student-check-name"><?= htmlspecialchars($name, ENT_QUOTES, 'UTF-8') ?></span>
+                        <span class="student-check-meta"><?= htmlspecialchars($matric ?: 'No matric no.', ENT_QUOTES, 'UTF-8') ?><?= $course ? ' · ' . htmlspecialchars($course, ENT_QUOTES, 'UTF-8') : '' ?></span>
+                    </span>
+                    <span class="student-check-add"><?= $checked ? 'Added' : 'Add' ?></span>
+                </label>
+            <?php endforeach; ?>
+        </div>
+        <div class="student-picker-empty d-none" data-student-empty>No students match your search.</div>
+    </div>
+    <?php
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $action = $_POST['admin_action'] ?? '';
 
@@ -265,6 +316,15 @@ foreach ($studentRows as &$student) {
 }
 unset($student);
 
+usort($studentRows, static function (array $a, array $b): int {
+    $nameCompare = strcasecmp((string) ($a['name'] ?? ''), (string) ($b['name'] ?? ''));
+    if ($nameCompare !== 0) {
+        return $nameCompare;
+    }
+
+    return strcasecmp((string) ($a['matric_no'] ?? ''), (string) ($b['matric_no'] ?? ''));
+});
+
 $projectRows = $db->query(
     "SELECT p.project_id, p.title_encrypted, p.description_encrypted, p.lecturer_id, p.study_year, p.created_at,
             lu.name_encrypted AS lecturer_name_encrypted,
@@ -310,6 +370,17 @@ foreach ($projectRows as $row) {
             'matric_no' => $member['matric_no'] ?? '',
         ];
     }
+
+    usort($members, static function (array $a, array $b): int {
+        if (($a['role'] ?? '') === 'lecturer' && ($b['role'] ?? '') !== 'lecturer') {
+            return -1;
+        }
+        if (($a['role'] ?? '') !== 'lecturer' && ($b['role'] ?? '') === 'lecturer') {
+            return 1;
+        }
+
+        return strcasecmp((string) ($a['name'] ?? ''), (string) ($b['name'] ?? ''));
+    });
 
     $projects[] = [
         'id' => $projectId,
@@ -493,14 +564,8 @@ require __DIR__ . '/admin_header.php';
                     </div>
                     <div class="col-12">
                         <label class="form-label fw-semibold" for="projectStudents">Students</label>
-                        <select class="form-select" id="projectStudents" name="student_ids[]" size="8" multiple required>
-                            <?php foreach ($studentRows as $student): ?>
-                                <option value="<?= h($student['user_id']) ?>">
-                                    <?= h($student['name']) ?> - <?= h($student['matric_no']) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                        <div class="form-text">Hold Ctrl or Cmd to select more than one student.</div>
+                        <?php adminProjectRenderStudentPicker('projectStudents', $studentRows); ?>
+                        <div class="form-text">Tick students to add them to this project.</div>
                     </div>
                     <div class="col-12">
                         <label class="form-label fw-semibold" for="projectDescription">Description</label>
@@ -563,14 +628,8 @@ $selectedStudentIds = array_map(
                     </div>
                     <div class="col-12">
                         <label class="form-label fw-semibold" for="editProjectStudents<?= $project['id'] ?>">Students</label>
-                        <select class="form-select" id="editProjectStudents<?= $project['id'] ?>" name="student_ids[]" size="8" multiple required>
-                            <?php foreach ($studentRows as $student): ?>
-                                <option value="<?= h($student['user_id']) ?>" <?= in_array((int) $student['user_id'], $selectedStudentIds, true) ? 'selected' : '' ?>>
-                                    <?= h($student['name']) ?> - <?= h($student['matric_no']) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                        <div class="form-text">Hold Ctrl or Cmd to select more than one student.</div>
+                        <?php adminProjectRenderStudentPicker('editProjectStudents' . (string) $project['id'], $studentRows, $selectedStudentIds); ?>
+                        <div class="form-text">Tick students to add them to this project.</div>
                     </div>
                     <div class="col-12">
                         <label class="form-label fw-semibold" for="editProjectDescription<?= $project['id'] ?>">Description</label>
@@ -631,6 +690,49 @@ $selectedStudentIds = array_map(
 </div>
 <?php endforeach; ?>
 
+<script>
+document.querySelectorAll('[data-student-picker]').forEach((picker) => {
+    const searchInput = picker.querySelector('[data-student-search]');
+    const courseFilter = picker.querySelector('[data-student-filter]');
+    const countLabel = picker.querySelector('[data-student-count]');
+    const emptyMessage = picker.querySelector('[data-student-empty]');
+    const rows = Array.from(picker.querySelectorAll('[data-student-option]'));
+
+    const updatePicker = () => {
+        const query = (searchInput?.value || '').trim().toLowerCase();
+        const course = courseFilter?.value || '';
+        let visibleCount = 0;
+        let selectedCount = 0;
+
+        rows.forEach((row) => {
+            const checkbox = row.querySelector('input[type="checkbox"]');
+            const addLabel = row.querySelector('.student-check-add');
+            const isChecked = Boolean(checkbox?.checked);
+            const matchesSearch = !query || (row.dataset.search || '').includes(query);
+            const matchesCourse = !course || row.dataset.course === course;
+            const isVisible = matchesSearch && matchesCourse;
+
+            row.classList.toggle('is-selected', isChecked);
+            row.classList.toggle('d-none', !isVisible);
+            if (isVisible) visibleCount++;
+            if (isChecked) selectedCount++;
+            if (addLabel) addLabel.textContent = isChecked ? 'Added' : 'Add';
+        });
+
+        if (countLabel) {
+            countLabel.textContent = `${selectedCount} selected`;
+        }
+        emptyMessage?.classList.toggle('d-none', visibleCount !== 0);
+    };
+
+    searchInput?.addEventListener('input', updatePicker);
+    courseFilter?.addEventListener('change', updatePicker);
+    rows.forEach((row) => {
+        row.querySelector('input[type="checkbox"]')?.addEventListener('change', updatePicker);
+    });
+    updatePicker();
+});
+</script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

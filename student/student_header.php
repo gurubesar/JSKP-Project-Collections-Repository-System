@@ -58,9 +58,10 @@ $studentId = (int) ($_SESSION['user_id'] ?? 0);
 $studentName = trim((string) ($_SESSION['user_name'] ?? 'Student'));
 
 $projects = [];
+$projectMembers = [];
 try {
     $stmt = $db->prepare(
-        "SELECT p.project_id, p.title_encrypted, p.description_encrypted, p.category_encrypted, p.study_year, p.progress_percentage, p.created_at,
+        "SELECT p.project_id, p.title_encrypted, p.description_encrypted, p.category_encrypted, p.study_year, p.created_at,
                 u.name_encrypted AS lecturer_name,
                 (SELECT s.status FROM submissions s WHERE s.project_id = p.project_id ORDER BY s.submitted_at DESC LIMIT 1) AS submission_status,
                 (SELECT s.submitted_at FROM submissions s WHERE s.project_id = p.project_id ORDER BY s.submitted_at DESC LIMIT 1) AS submitted_at
@@ -75,8 +76,38 @@ try {
     );
     $stmt->execute([$studentId]);
     $projects = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $projectIds = array_values(array_unique(array_map(static fn($project): int => (int) $project['project_id'], $projects)));
+    if ($projectIds) {
+        $placeholders = implode(',', array_fill(0, count($projectIds), '?'));
+        $memberStmt = $db->prepare(
+            "SELECT pm.project_id, u.user_id, u.name_encrypted, u.role AS user_role, pm.role AS project_role
+             FROM project_members pm
+             INNER JOIN users u ON u.user_id = pm.user_id
+             WHERE pm.project_id IN ($placeholders)
+             ORDER BY pm.project_id ASC,
+                      CASE pm.role WHEN 'leader' THEN 0 ELSE 1 END,
+                      u.user_id ASC"
+        );
+        $memberStmt->execute($projectIds);
+
+        foreach ($memberStmt->fetchAll(PDO::FETCH_ASSOC) as $memberRow) {
+            if (($memberRow['user_role'] ?? '') === 'lecturer' || ($memberRow['project_role'] ?? '') === 'lecturer') {
+                continue;
+            }
+
+            $projectIdForMember = (int) ($memberRow['project_id'] ?? 0);
+            $memberName = decryptValue($memberRow['name_encrypted'] ?? '') ?: 'Unnamed Student';
+            $projectMembers[$projectIdForMember][] = [
+                'id' => (int) ($memberRow['user_id'] ?? 0),
+                'name' => $memberName,
+                'role' => (string) ($memberRow['project_role'] ?? $memberRow['user_role'] ?? 'member'),
+            ];
+        }
+    }
 } catch (Throwable $error) {
     $projects = [];
+    $projectMembers = [];
 }
 
 $summary = [
@@ -84,7 +115,6 @@ $summary = [
     'pending' => 0,
     'approved' => 0,
     'rejected' => 0,
-    'average_progress' => 0,
 ];
 
 $studentNotifications = [];
@@ -108,10 +138,6 @@ foreach ($projects as $project) {
     }
 }
 
-if ($summary['total'] > 0) {
-    $summary['average_progress'] = (int) round(array_sum(array_map(static fn($project) => max(0, min(100, (int) ($project['progress_percentage'] ?? 0))), $projects)) / $summary['total']);
-}
-
 $statusLabel = static function (string $status): string {
     return match ($status) {
         'approved' => 'Approved',
@@ -128,13 +154,6 @@ $statusClass = static function (string $status): string {
     };
 };
 
-$statusProgress = static function (string $status): int {
-    return match ($status) {
-        'approved' => 100,
-        'rejected' => 70,
-        default => 45,
-    };
-};
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -411,7 +430,7 @@ $statusProgress = static function (string $status): int {
 
         .stat-card-total .stat-icon { background: rgba(128, 0, 32, 0.12); color: var(--student-sidebar); }
         .stat-card-pending .stat-icon { background: rgba(255, 193, 7, 0.15); color: #a16a15; }
-        .stat-card-approved .stat-icon { background: rgba(76, 175, 80, 0.15); color: #25732a; }        .stat-card-progress .stat-icon { background: rgba(56, 113, 207, 0.12); color: #165ca8; }        .stat-card-rejected .stat-icon { background: rgba(244, 67, 54, 0.15); color: #a1271d; }
+        .stat-card-approved .stat-icon { background: rgba(76, 175, 80, 0.15); color: #25732a; }        .stat-card-rejected .stat-icon { background: rgba(244, 67, 54, 0.15); color: #a1271d; }
 
         .stat-content h3 {
             margin: 0 0 6px;
@@ -515,38 +534,134 @@ $statusProgress = static function (string $status): int {
             color: var(--student-sidebar);
         }
 
-        .project-progress {
+        .project-team {
             display: grid;
             gap: 10px;
-            padding: 16px;
-            border-radius: 18px;
+            padding: 14px 16px;
+            background: rgba(214, 160, 29, 0.08);
+            border: 1px solid rgba(214, 160, 29, 0.2);
+            border-radius: 14px;
+        }
+
+        .project-team-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--student-sidebar);
+            font-size: 0.82rem;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .team-member-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .team-member-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            max-width: 100%;
+            padding: 7px 10px;
+            border-radius: 999px;
+            background: #fff;
+            border: 1px solid rgba(128, 0, 32, 0.1);
+            color: var(--student-text);
+            font-size: 0.88rem;
+            font-weight: 700;
+        }
+
+        .team-member-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 auto;
+            background: var(--student-sidebar);
+            color: #fff;
+            font-size: 0.78rem;
+            font-weight: 800;
+        }
+
+        .team-member-name {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .team-member-role {
+            color: var(--student-muted);
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-transform: capitalize;
+        }
+
+        .team-empty {
+            margin: 0;
+            color: var(--student-muted);
+            font-size: 0.9rem;
+        }
+
+        .team-strip {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            min-width: 0;
+            padding: 10px 14px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.86);
+            border: 1px solid rgba(128, 0, 32, 0.08);
+            box-shadow: 0 8px 22px rgba(28, 39, 60, 0.05);
+        }
+
+        .team-strip-title {
+            margin: 0;
+            flex: 0 0 auto;
+            color: var(--student-sidebar);
+            font-size: 0.92rem;
+            font-weight: 800;
+        }
+
+        .team-stack {
+            display: flex;
+            flex-wrap: wrap;
+            min-width: 0;
+            gap: 8px;
+        }
+
+        .team-line {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+            max-width: 320px;
+            padding: 7px 9px;
+            border-radius: 999px;
             background: rgba(128, 0, 32, 0.04);
             border: 1px solid rgba(128, 0, 32, 0.08);
         }
 
-        .project-progress-label {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 12px;
-            font-size: 0.95rem;
+        .team-line-body {
+            min-width: 0;
+        }
+
+        .team-line-name {
             color: var(--student-text);
+            font-size: 0.8rem;
+            font-weight: 800;
+            line-height: 1.15;
+            overflow-wrap: anywhere;
         }
 
-        .project-progress-track {
-            width: 100%;
-            height: 12px;
-            border-radius: 999px;
-            background: rgba(128, 0, 32, 0.12);
-            overflow: hidden;
-        }
-
-        .project-progress-fill {
-            height: 100%;
-            border-radius: 999px;
-            background: linear-gradient(135deg, #800020 0%, #d6a01d 100%);
-            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.12);
-            transition: width 0.4s ease;
+        .team-line-role {
+            color: var(--student-muted);
+            font-size: 0.7rem;
+            text-transform: capitalize;
         }
 
         .project-description {

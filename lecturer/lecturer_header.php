@@ -813,7 +813,7 @@ try {
             line-height: 1.7;
         }
 
-        .progress-table th {
+        .project-table th {
             color: #5f6878;
             font-size: 0.8rem;
             text-transform: uppercase;

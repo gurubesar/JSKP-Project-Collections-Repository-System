@@ -110,7 +110,6 @@
                                 $submittedAt = $project['submitted_at']
                                     ? date('d/m/Y', strtotime((string) $project['submitted_at']))
                                     : 'No data available';
-                                $progressValue = $project['progress'] ?? 0;
                                 ?>
                                 <div class="project-item" data-status="<?= e($status) ?>" data-year="<?= e($project['study_year']) ?>" data-search="<?= e($searchText) ?>">
                                     <article class="project-card" style="background: #ffffff; border: 1px solid #e0e0e0; border-radius: 12px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); height: 100%; display: flex; flex-direction: column;">
@@ -136,16 +135,6 @@
                                                         <div style="font-size: 0.85rem; color: #a67c52;">No students assigned</div>
                                                     <?php endif; ?>
                                                 </div>
-                                            </div>
-                                        </div>
-
-                                        <div style="margin-bottom: 16px;">
-                                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                                                <span style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; color: #a67c52;">Progress</span>
-                                                <strong style="color: #643f27; font-size: 0.9rem;"><?= e($progressValue) ?>%</strong>
-                                            </div>
-                                            <div class="progress" style="height: 6px; background: rgba(100,64,39,0.08); border-radius: 3px; overflow: hidden;">
-                                                <div class="progress-bar" style="width: <?= e($progressValue) ?>%; background: linear-gradient(90deg, #643f27, #a67c52); height: 100%; border-radius: 3px; transition: width 0.4s ease;"></div>
                                             </div>
                                         </div>
 

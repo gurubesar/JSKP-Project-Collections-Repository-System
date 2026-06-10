@@ -112,7 +112,7 @@ require_once __DIR__ . '/lecturer_header.php';
             <section class="d-flex align-items-start justify-content-between flex-wrap gap-3 mb-4">
                 <div>
                     <h1 class="h3 fw-bold mb-1" style="color:var(--lecturer-maroon);">Assigned Students</h1>
-                    <p class="text-muted mb-0">Track student progress and submission status</p>
+                    <p class="text-muted mb-0">Track student submission status</p>
                 </div>
             </section>
 
@@ -209,7 +209,7 @@ require_once __DIR__ . '/lecturer_header.php';
                 </div>
             </section>
 
-            <!-- Student Cards + Progress -->
+            <!-- Student Cards -->
             <?php if (!$students): ?>
                 <div class="empty-state">
                     <div>
@@ -251,9 +251,9 @@ require_once __DIR__ . '/lecturer_header.php';
                                     <strong>Projects:</strong> <?= e(count($student['projects'])) ?>
                                 </div>
 
-                                <!-- Progress Table -->
+                                <!-- Project Table -->
                                 <div class="table-responsive">
-                                    <table class="table table-sm mb-0 progress-table">
+                                    <table class="table table-sm mb-0 project-table">
                                         <thead>
                                             <tr>
                                                 <th>Project</th>

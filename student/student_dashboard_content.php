@@ -27,13 +27,6 @@
                         <strong><?= e((string) $summary['approved']) ?></strong>
                     </div>
                 </div>
-                <div class="stat-card stat-card-progress">
-                    <div class="stat-icon"><i class="bi bi-bar-chart-line-fill"></i></div>
-                    <div class="stat-content">
-                        <h3>Average Progress</h3>
-                        <strong><?= e((string) $summary['average_progress']) ?>%</strong>
-                    </div>
-                </div>
                 <div class="stat-card stat-card-rejected">
                     <div class="stat-icon"><i class="bi bi-exclamation-circle-fill"></i></div>
                     <div class="stat-content">
@@ -60,11 +53,10 @@
                             $supervisor = decryptValue($project['lecturer_name'] ?? '');
                             $projectStatus = $project['submission_status'] ?: 'pending';
                             $statusText = $statusLabel($projectStatus);
-                            $progress = max(0, min(100, (int) ($project['progress_percentage'] ?? 0)));
-                            $progressLabel = $progress >= 100 ? 'Complete' : ($progress >= 70 ? 'Almost done' : ($progress >= 40 ? 'In progress' : 'Getting started'));
                             $created = $project['created_at'] ? date('d M Y', strtotime($project['created_at'])) : '';
                             $submittedAt = $project['submitted_at'] ? date('d M Y', strtotime($project['submitted_at'])) : 'Not submitted yet';
                             $projectCode = 'UTM-FYP-' . str_pad((string) $project['project_id'], 4, '0', STR_PAD_LEFT);
+                            $members = $projectMembers[(int) $project['project_id']] ?? [];
                         ?>
                         <article class="project-card">
                             <div class="project-card-header">
@@ -82,14 +74,30 @@
                                 <i class="bi bi-person-circle"></i>
                                 <span>Supervised by: <strong><?= e($supervisor ?: 'Not assigned') ?></strong></span>
                             </div>
-                            <div class="project-progress">
-                                <div class="project-progress-label">
-                                    <span><?= e($progressLabel) ?></span>
-                                    <span class="fw-semibold"><?= e($progress) ?>%</span>
+                            <div class="project-team">
+                                <div class="project-team-header">
+                                    <i class="bi bi-people-fill"></i>
+                                    <span>Team Members</span>
                                 </div>
-                                <div class="project-progress-track">
-                                    <div class="project-progress-fill" style="width: <?= e($progress) ?>%;"></div>
-                                </div>
+                                <?php if ($members): ?>
+                                    <div class="team-member-list">
+                                        <?php foreach ($members as $member): ?>
+                                            <?php
+                                                $memberName = (int) ($member['id'] ?? 0) === $studentId ? 'You' : (string) ($member['name'] ?? 'Unnamed Student');
+                                                $initialSource = $memberName === 'You' ? ($_SESSION['user_name'] ?? 'You') : $memberName;
+                                                $initial = strtoupper(substr((string) $initialSource, 0, 1));
+                                                $role = strtolower((string) ($member['role'] ?? 'member'));
+                                            ?>
+                                            <span class="team-member-pill">
+                                                <span class="team-member-avatar"><?= e($initial ?: 'S') ?></span>
+                                                <span class="team-member-name"><?= e($memberName) ?></span>
+                                                <span class="team-member-role"><?= e($role ?: 'member') ?></span>
+                                            </span>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php else: ?>
+                                    <p class="team-empty">No team members assigned yet.</p>
+                                <?php endif; ?>
                             </div>
                             <div class="project-actions">
                                 <a href="student_project.php?project_id=<?= e($project['project_id']) ?>" class="btn btn-primary"><i class="bi bi-eye"></i> View Details</a>

@@ -62,6 +62,7 @@ try {
          INNER JOIN project_members my_pm
              ON my_pm.project_id = p.project_id
             AND my_pm.user_id = ?
+            AND my_pm.role = 'student'
          WHERE p.project_id = ?"
     );
     $stmt->execute([$studentId, $projectId]);
@@ -80,8 +81,8 @@ try {
         "SELECT u.user_id, u.name_encrypted, u.role AS user_role, pm.role AS project_role
          FROM project_members pm
          INNER JOIN users u ON u.user_id = pm.user_id
-         WHERE pm.project_id = ?
-         ORDER BY CASE pm.role WHEN 'lecturer' THEN 0 ELSE 1 END, u.user_id ASC"
+         WHERE pm.project_id = ? AND pm.role = 'student' AND u.role = 'student'
+         ORDER BY u.user_id ASC"
     );
     $memberStmt->execute([$projectId]);
     foreach ($memberStmt->fetchAll(PDO::FETCH_ASSOC) as $memberRow) {
@@ -94,7 +95,7 @@ try {
     }
 
     $fileStmt = $db->prepare(
-        "SELECT f.file_id, f.file_name_encrypted, f.file_path_encrypted, f.uploaded_at, u.name_encrypted AS uploader_name, f.uploaded_by
+        "SELECT f.file_id, f.file_name_encrypted, f.file_path_encrypted, f.file_type, f.uploaded_at, u.name_encrypted AS uploader_name, f.uploaded_by
          FROM files f
          LEFT JOIN users u ON u.user_id = f.uploaded_by
          WHERE f.project_id = ?
@@ -123,10 +124,13 @@ try {
             'file_id' => (int) ($fileRow['file_id'] ?? 0),
             'file_name' => $fileName,
             'file_path' => $filePath,
+            'file_type' => (string) ($fileRow['file_type'] ?? 'document'),
             'uploaded_at' => $fileRow['uploaded_at'] ?? '',
             'uploader_name' => student_project_decrypt($fileRow['uploader_name'] ?? ''),
             'uploaded_by' => (int) ($fileRow['uploaded_by'] ?? 0),
             'is_proposal' => $isProposalFile,
+            'is_poster' => (string) ($fileRow['file_type'] ?? '') === 'poster' || str_contains($normalizedFileName, 'poster'),
+            'is_header_photo' => (string) ($fileRow['file_type'] ?? '') === 'header_photo',
         ];
 
         $processedFiles[] = $processedFile;
@@ -234,6 +238,7 @@ require_once __DIR__ . '/student_header.php';
                     <div class="d-flex flex-wrap gap-2">
                         <button class="btn btn-utm" data-bs-toggle="modal" data-bs-target="#generateProposalModal">Generate Proposal</button>
                         <button class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#uploadBox">Upload File</button>
+                        <a class="btn btn-outline-secondary" href="student_posters.php?project_id=<?= $projectId ?>">Project Poster</a>
                     </div>
                 </div>
                 <div class="col-lg-4 mt-4 mt-lg-0">
@@ -287,10 +292,11 @@ require_once __DIR__ . '/student_header.php';
             <div class="card border-utm rounded-4 p-4 shadow-sm">
                 <h2 class="h5 mb-3">Upload New File</h2>
                 <form action="student_actions.php?action=upload_file&project_id=<?= $projectId ?>" method="post" enctype="multipart/form-data">
+                    <input type="hidden" name="upload_type" value="document">
                     <div class="mb-3">
-                        <label class="form-label">Select PDF file</label>
-                        <input type="file" name="project_file" class="form-control" accept="application/pdf" required>
-                        <div class="form-text">Please submit only PDF files (max 200 MB).</div>
+                        <label class="form-label">Select file</label>
+                        <input type="file" name="project_file" class="form-control" required>
+                        <div class="form-text">Upload any project file up to 200 MB.</div>
                     </div>
                     <button class="btn btn-utm" type="submit">Upload</button>
                 </form>
@@ -368,6 +374,12 @@ require_once __DIR__ . '/student_header.php';
                                         <h3 class="h6 mb-0 text-truncate"><?= htmlspecialchars($fileName ?: 'Untitled Document') ?></h3>
                                         <?php if (!empty($file['is_proposal'])): ?>
                                             <span class="badge badge-utm-gold py-1 px-2">Proposal</span>
+                                        <?php endif; ?>
+                                        <?php if (!empty($file['is_poster'])): ?>
+                                            <span class="badge badge-utm-gold py-1 px-2">Poster</span>
+                                        <?php endif; ?>
+                                        <?php if (!empty($file['is_header_photo'])): ?>
+                                            <span class="badge badge-secondary py-1 px-2">Header Photo</span>
                                         <?php endif; ?>
                                     </div>
                                     <div class="d-flex flex-wrap gap-3 small text-muted">

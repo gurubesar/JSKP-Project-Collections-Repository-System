@@ -37,7 +37,12 @@ function createNotification(PDO $db, int $recipientId, ?int $senderId, int $proj
 
 function fetchProjectStudentIds(PDO $db, int $projectId): array
 {
-    $stmt = $db->prepare('SELECT user_id FROM project_members WHERE project_id = ?');
+    $stmt = $db->prepare(
+        "SELECT pm.user_id
+         FROM project_members pm
+         INNER JOIN users u ON u.user_id = pm.user_id
+         WHERE pm.project_id = ? AND pm.role = 'student' AND u.role = 'student'"
+    );
     $stmt->execute([$projectId]);
     return array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
 }
@@ -150,16 +155,16 @@ try {
         "SELECT u.user_id, u.name_encrypted, pm.role
          FROM project_members pm
          INNER JOIN users u ON u.user_id = pm.user_id
-         WHERE pm.project_id = ?
-         ORDER BY pm.role DESC, u.user_id ASC"
+         WHERE pm.project_id = ? AND pm.role = 'student' AND u.role = 'student'
+         ORDER BY u.user_id ASC"
     );
 
     $fileStmt = $db->prepare(
-        "SELECT f.file_id, f.file_name_encrypted, f.file_path_encrypted, f.uploaded_at,
+        "SELECT f.file_id, f.file_name_encrypted, f.file_path_encrypted, f.file_type, f.uploaded_at,
                 u.name_encrypted AS uploader_name
          FROM files f
          LEFT JOIN users u ON u.user_id = f.uploaded_by
-         WHERE f.project_id = ?
+         WHERE f.project_id = ? AND COALESCE(f.file_type, 'document') NOT IN ('poster', 'header_photo')
          ORDER BY f.uploaded_at DESC"
     );
 
@@ -178,6 +183,10 @@ try {
         foreach ($fileStmt->fetchAll(PDO::FETCH_ASSOC) as $file) {
             $fileName = decryptValue($file['file_name_encrypted'] ?? '');
             $filePath = decryptValue($file['file_path_encrypted'] ?? '');
+            $normalizedFileName = strtolower($fileName);
+            if (str_contains($normalizedFileName, 'poster')) {
+                continue;
+            }
             if ($fileName !== '') {
                 $files[] = [
                     'id'          => (int) $file['file_id'],
@@ -271,7 +280,7 @@ require_once __DIR__ . '/lecturer_header.php';
                     <div class="col-12 col-lg">
                         <div class="input-group">
                             <span class="input-group-text search-control bg-white border-end-0"><i class="bi bi-search"></i></span>
-                            <input id="projectSearch" class="form-control search-control border-start-0" type="search" placeholder="Search projects or students…">
+                            <input id="projectSearch" class="form-control search-control border-start-0" type="search" placeholder="Search submissions...">
                         </div>
                     </div>
                     <div class="col-12 col-sm-6 col-lg-3">
@@ -293,86 +302,78 @@ require_once __DIR__ . '/lecturer_header.php';
                 </div>
             </section>
 
-            <!-- Project Cards -->
+            <!-- Project Rows -->
             <?php if (!$projects): ?>
                 <div class="empty-state"><div><i class="bi bi-folder2-open fs-2 d-block mb-2"></i>No submissions found.</div></div>
             <?php else: ?>
-                <div class="row g-4" id="projectGrid">
+                <div class="submission-list" id="projectGrid">
                     <?php foreach ($projects as $project): ?>
                         <?php
-                        $studentNames = array_column($project['students'], 'name');
-                        $searchText   = strtolower($project['title'] . ' ' . implode(' ', $studentNames));
-                        $submittedAt  = $project['submitted_at'] ? date('d/m/Y', strtotime((string) $project['submitted_at'])) : 'No data available';
+                        $fileNames = array_column($project['files'], 'name');
+                        $searchText = strtolower($project['title'] . ' ' . implode(' ', $fileNames));
+                        $submittedAt = $project['submitted_at'] ? date('d/m/Y', strtotime((string) $project['submitted_at'])) : 'No data available';
                         ?>
-                        <div class="col-12 col-lg-6 col-xxl-4 project-item"
-                             data-status="<?= e($project['status']) ?>"
-                             data-year="<?= e($project['study_year']) ?>"
-                             data-search="<?= e($searchText) ?>">
-                            <article class="project-card">
-                                <div class="d-flex align-items-start justify-content-between gap-3 mb-3">
-                                    <span class="status-badge status-<?= e($project['status']) ?>"><?= e($statusLabels[$project['status']] ?? $project['status']) ?></span>
-                                    <small class="text-muted"><?= e($project['code']) ?></small>
+                        <article class="submission-card project-item"
+                                 data-status="<?= e($project['status']) ?>"
+                                 data-year="<?= e($project['study_year']) ?>"
+                                 data-search="<?= e($searchText) ?>">
+                            <div class="submission-card-main">
+                                <div>
+                                    <div class="submission-label">Submission</div>
+                                    <h2><?= e($project['title']) ?></h2>
+                                    <div class="submission-code"><?= e($project['code']) ?></div>
                                 </div>
-                                <h2 class="project-title mb-2"><?= e($project['title']) ?></h2>
-                                <div class="mb-2" style="color:var(--lecturer-text);line-height:1.55;">
-                                    <strong><?= e(count($studentNames)) ?> Student<?= count($studentNames) === 1 ? '' : 's' ?></strong>
-                                    <?php foreach ($studentNames as $i => $sn): ?>
-                                        <div><?= e($i + 1) ?>. <?= e($sn) ?></div>
-                                    <?php endforeach; ?>
-                                </div>
-                                <div class="text-muted mb-1" style="font-size:.9rem;">Submitted: <?= e($submittedAt) ?></div>
-                                <div class="text-muted mb-2" style="font-size:.9rem;">Study Year: <?= $project['study_year'] !== '' ? e($project['study_year']) : 'N/A' ?></div>
-                                <!-- Files -->
-                                <?php if ($project['files']): ?>
-                                <div class="files-section">
-                                    <h6><i class="bi bi-paperclip me-1"></i>Uploaded Files (<?= count($project['files']) ?>)</h6>
-                                    <?php foreach ($project['files'] as $file): ?>
-                                        <div class="file-item">
-                                            <i class="bi bi-file-earmark-fill text-muted"></i>
-                                            <span class="file-name" title="<?= e($file['name']) ?>"><?= e($file['name']) ?></span>
-                                            <div class="file-meta d-none d-sm-block">
-                                                <?= $file['uploaded_at'] ? e(date('d/m/Y', strtotime((string)$file['uploaded_at']))) : '' ?>
-                                            </div>
-                                            <?php if ($file['path']): ?>
-                                                <a href="<?= e($file['path']) ?>" class="btn-download" download>
-                                                    <i class="bi bi-download"></i> Download
-                                                </a>
-                                            <?php endif; ?>
-                                        </div>
-                                    <?php endforeach; ?>
-                                </div>
-                                <?php else: ?>
-                                <div class="files-section text-muted" style="font-size:.875rem;">
-                                    <i class="bi bi-folder2-open me-1"></i>No files uploaded yet.
-                                </div>
-                                <?php endif; ?>
+                                <span class="status-badge status-<?= e($project['status']) ?>"><?= e($statusLabels[$project['status']] ?? $project['status']) ?></span>
+                            </div>
 
-                                <!-- Actions -->
-                                <div class="action-row">
-                                    <button class="btn btn-review btn-comment" type="button"
-                                            data-bs-toggle="modal" data-bs-target="#commentModal"
-                                            data-project-id="<?= e($project['id']) ?>"
-                                            data-project-title="<?= e($project['title']) ?>">
-                                        <i class="bi bi-chat-left-text me-1"></i>Comment
-                                    </button>
-                                    <form method="post" class="d-inline">
-                                        <input type="hidden" name="project_id" value="<?= e($project['id']) ?>">
-                                        <input type="hidden" name="action" value="reject">
-                                        <button class="btn btn-review btn-reject" type="submit"
-                                                onclick="return confirm('Reject this submission?')">
-                                            <i class="bi bi-x-lg me-1"></i>Reject
-                                        </button>
-                                    </form>
-                                    <form method="post" class="d-inline">
-                                        <input type="hidden" name="project_id" value="<?= e($project['id']) ?>">
-                                        <input type="hidden" name="action" value="approve">
-                                        <button class="btn btn-review btn-approve" type="submit">
-                                            <i class="bi bi-check-lg me-1"></i>Approve
-                                        </button>
-                                    </form>
+                            <div class="submission-detail-grid">
+                                <div class="submission-detail">
+                                    <span>Submitted</span>
+                                    <strong><?= e($submittedAt) ?></strong>
                                 </div>
-                            </article>
-                        </div>
+                                <div class="submission-detail">
+                                    <span>Study Year</span>
+                                    <strong><?= $project['study_year'] !== '' ? e($project['study_year']) : 'N/A' ?></strong>
+                                </div>
+                                <div class="submission-detail files-detail">
+                                    <span>Files</span>
+                                    <?php if ($project['files']): ?>
+                                        <div class="submission-files">
+                                            <?php foreach ($project['files'] as $file): ?>
+                                                <a href="<?= e($file['path']) ?>" class="btn-download" download>
+                                                    <i class="bi bi-download"></i> <?= e($file['name']) ?>
+                                                </a>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    <?php else: ?>
+                                        <strong class="text-muted">No files</strong>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+
+                            <div class="submission-actions">
+                                <button class="btn btn-review btn-comment" type="button"
+                                        data-bs-toggle="modal" data-bs-target="#commentModal"
+                                        data-project-id="<?= e($project['id']) ?>"
+                                        data-project-title="<?= e($project['title']) ?>">
+                                    <i class="bi bi-chat-left-text me-1"></i>Comment
+                                </button>
+                                <form method="post" class="m-0">
+                                    <input type="hidden" name="project_id" value="<?= e($project['id']) ?>">
+                                    <input type="hidden" name="action" value="reject">
+                                    <button class="btn btn-review btn-reject" type="submit" onclick="return confirm('Reject this submission?')">
+                                        <i class="bi bi-x-lg me-1"></i>Reject
+                                    </button>
+                                </form>
+                                <form method="post" class="m-0">
+                                    <input type="hidden" name="project_id" value="<?= e($project['id']) ?>">
+                                    <input type="hidden" name="action" value="approve">
+                                    <button class="btn btn-review btn-approve" type="submit">
+                                        <i class="bi bi-check-lg me-1"></i>Approve
+                                    </button>
+                                </form>
+                            </div>
+                        </article>
                     <?php endforeach; ?>
                 </div>
                 <div class="empty-state d-none mt-4" id="filteredEmpty">No submissions found.</div>
@@ -380,6 +381,107 @@ require_once __DIR__ . '/lecturer_header.php';
         </div>
     </main>
 </div>
+
+<style>
+    .submission-list {
+        display: grid;
+        gap: 16px;
+    }
+
+    .submission-card {
+        display: grid;
+        gap: 18px;
+        padding: 20px;
+        border: 1px solid var(--lecturer-border);
+        border-radius: 8px;
+        background: #fff;
+        box-shadow: var(--lecturer-shadow);
+    }
+
+    .submission-card-main {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        border-bottom: 1px solid var(--lecturer-border);
+        padding-bottom: 16px;
+    }
+
+    .submission-label {
+        color: var(--lecturer-muted);
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+    }
+
+    .submission-card h2 {
+        margin: 4px 0;
+        color: var(--lecturer-text);
+        font-size: 1.1rem;
+        line-height: 1.35;
+    }
+
+    .submission-code {
+        color: var(--lecturer-muted);
+        font-size: 0.9rem;
+    }
+
+    .submission-detail-grid {
+        display: grid;
+        grid-template-columns: minmax(130px, 0.8fr) minmax(120px, 0.7fr) minmax(260px, 2fr);
+        gap: 14px;
+        align-items: start;
+    }
+
+    .submission-detail {
+        display: grid;
+        gap: 6px;
+    }
+
+    .submission-detail span {
+        color: var(--lecturer-muted);
+        font-size: 0.78rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .submission-detail strong {
+        color: var(--lecturer-text);
+    }
+
+    .submission-files {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 8px;
+    }
+
+    .submission-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: flex-end;
+        border-top: 1px solid var(--lecturer-border);
+        padding-top: 16px;
+    }
+
+    @media (max-width: 900px) {
+        .submission-detail-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .submission-card-main,
+        .submission-actions {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .submission-actions .btn-review {
+            width: 100%;
+        }
+    }
+</style>
 
 <!-- Comment Modal -->
 <div class="modal fade" id="commentModal" tabindex="-1" aria-labelledby="commentModalLabel" aria-hidden="true">

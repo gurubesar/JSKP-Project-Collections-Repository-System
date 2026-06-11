@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS files (
   project_id INTEGER NOT NULL REFERENCES projects(project_id) ON DELETE CASCADE,
   file_name_encrypted TEXT NOT NULL,
   file_path_encrypted TEXT NOT NULL,
+  file_type VARCHAR(50) NOT NULL DEFAULT 'document',
   uploaded_by INTEGER REFERENCES users(user_id) ON DELETE SET NULL,
   uploaded_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
   UNIQUE (project_id, file_name_encrypted)

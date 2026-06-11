@@ -68,7 +68,7 @@ try {
          FROM project_members pm
          JOIN projects p ON pm.project_id = p.project_id
          LEFT JOIN users u ON p.lecturer_id = u.user_id
-         WHERE pm.user_id = ?
+         WHERE pm.user_id = ? AND pm.role = 'student'
          ORDER BY COALESCE(
              (SELECT s.submitted_at FROM submissions s WHERE s.project_id = p.project_id ORDER BY s.submitted_at DESC LIMIT 1),
              p.created_at

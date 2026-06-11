@@ -234,6 +234,13 @@ require __DIR__ . '/admin_sidebar.php';
     // Export to Excel button handler
     document.getElementById('exportBtn').addEventListener('click', function() {
         const btn = this;
+        const defaultName = `jskp_report_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}`;
+        const requestedName = window.prompt('Enter a file name for the Excel report:', defaultName);
+        if (requestedName === null) {
+            return;
+        }
+
+        const filename = requestedName.trim() || defaultName;
         btn.disabled = true;
         btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Generating...';
 
@@ -244,22 +251,23 @@ require __DIR__ . '/admin_sidebar.php';
             },
             credentials: 'same-origin',  // Include cookies with request
             body: JSON.stringify({
-                action: 'export'
+                action: 'export',
+                filename
             })
         })
         .then(response => {
             if (response.status === 200) {
                 // Get filename from Content-Disposition header
                 const disposition = response.headers.get('Content-Disposition');
-                const filename = disposition 
+                const downloadName = disposition
                     ? disposition.split('filename=')[1].replace(/"/g, '')
-                    : 'jskp_summary_report.xlsx';
-                
+                    : `${filename}.xls`;
+
                 return response.blob().then(blob => {
                     const url = window.URL.createObjectURL(blob);
                     const link = document.createElement('a');
                     link.href = url;
-                    link.download = filename;
+                    link.download = downloadName;
                     document.body.appendChild(link);
                     link.click();
                     window.URL.revokeObjectURL(url);

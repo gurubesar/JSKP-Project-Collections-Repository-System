@@ -1,4 +1,8 @@
 <?php
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 require_once __DIR__ . '/../database/db.php';
 require_once __DIR__ . '/../database/encryption.php';
 
@@ -32,9 +36,15 @@ function publicPosterIsPosterFile(string $fileName): bool
     return $normalized !== '' && str_contains($normalized, 'poster');
 }
 
+function publicPosterIsImageFile(string $filePath): bool
+{
+    return in_array(strtolower(pathinfo($filePath, PATHINFO_EXTENSION)), ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'], true);
+}
+
 $projects = [];
 $posterCount = 0;
 $flashMessage = '';
+$selectedProjectId = (int) ($_GET['project_id'] ?? 0);
 
 try {
     $projectRows = $db->query(
@@ -49,12 +59,12 @@ try {
         "SELECT u.name_encrypted
          FROM project_members pm
          INNER JOIN users u ON u.user_id = pm.user_id
-         WHERE pm.project_id = ? AND pm.role = 'student'
+         WHERE pm.project_id = ? AND pm.role = 'student' AND u.role = 'student'
          ORDER BY u.user_id ASC"
     );
 
     $fileStmt = $db->prepare(
-        "SELECT file_name_encrypted, file_path_encrypted, uploaded_at
+        "SELECT file_id, file_name_encrypted, file_path_encrypted, file_type, uploaded_by, uploaded_at
          FROM files
          WHERE project_id = ?
          ORDER BY uploaded_at DESC"
@@ -74,19 +84,32 @@ try {
 
         $fileStmt->execute([$projectId]);
         $posters = [];
+        $headerPhoto = null;
         foreach ($fileStmt->fetchAll(PDO::FETCH_ASSOC) as $file) {
             $fileName = publicPosterDecrypt($file['file_name_encrypted'] ?? '');
             $filePath = publicPosterDecrypt($file['file_path_encrypted'] ?? '');
+            $fileType = (string) ($file['file_type'] ?? 'document');
 
-            if (!publicPosterIsPosterFile($fileName)) {
+            if ($fileType === 'header_photo' && $filePath !== '' && $headerPhoto === null) {
+                $headerPhoto = [
+                    'id' => (int) ($file['file_id'] ?? 0),
+                    'name' => $fileName,
+                    'path' => $filePath,
+                    'uploaded_by' => (int) ($file['uploaded_by'] ?? 0),
+                    'uploaded_at' => $file['uploaded_at'] ?? null,
+                ];
                 continue;
             }
 
-            $posters[] = [
-                'name' => $fileName,
-                'path' => $filePath,
-                'uploaded_at' => $file['uploaded_at'] ?? null,
-            ];
+            if ($fileType === 'poster' || publicPosterIsPosterFile($fileName)) {
+                $posters[] = [
+                    'id' => (int) ($file['file_id'] ?? 0),
+                    'name' => $fileName,
+                    'path' => $filePath,
+                    'uploaded_by' => (int) ($file['uploaded_by'] ?? 0),
+                    'uploaded_at' => $file['uploaded_at'] ?? null,
+                ];
+            }
         }
 
         $posterCount += count($posters);
@@ -102,7 +125,15 @@ try {
             'lecturer' => publicPosterDecrypt($row['lecturer_name'] ?? ''),
             'students' => $students,
             'posters' => $posters,
+            'header_photo' => $headerPhoto,
+            'is_selected' => $selectedProjectId > 0 && $selectedProjectId === $projectId,
         ];
+    }
+
+    if ($selectedProjectId > 0) {
+        usort($projects, static function (array $a, array $b): int {
+            return (int) ($b['is_selected'] ?? false) <=> (int) ($a['is_selected'] ?? false);
+        });
     }
 } catch (Throwable $error) {
     $flashMessage = 'Public posters are unavailable right now. Please try again later.';
@@ -236,6 +267,18 @@ try {
                 #fff7ec;
         }
 
+        .poster-preview.has-photo {
+            padding: 0;
+            background: #fff7ec;
+        }
+
+        .poster-preview img {
+            width: 100%;
+            height: 176px;
+            object-fit: cover;
+            display: block;
+        }
+
         .poster-icon {
             width: 86px;
             height: 86px;
@@ -295,6 +338,34 @@ try {
             margin-top: auto;
         }
 
+        .poster-manage {
+            display: grid;
+            gap: 12px;
+            padding: 14px;
+            border: 1px solid rgba(128, 0, 32, 0.12);
+            border-radius: 8px;
+            background: rgba(128, 0, 32, 0.035);
+        }
+
+        .poster-manage-title {
+            margin: 0;
+            color: var(--utm-maroon);
+            font-size: 0.9rem;
+            font-weight: 800;
+        }
+
+        .poster-manage form {
+            display: grid;
+            gap: 8px;
+        }
+
+        .poster-manage-actions {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 8px;
+            align-items: center;
+        }
+
         .poster-file {
             display: flex;
             align-items: center;
@@ -327,6 +398,19 @@ try {
             border-radius: 8px;
         }
 
+        .poster-preview-modal .modal-body {
+            height: min(78vh, 760px);
+            padding: 0;
+            background: #f6f7fb;
+        }
+
+        .poster-preview-modal iframe {
+            width: 100%;
+            height: 100%;
+            border: 0;
+            display: block;
+        }
+
         .empty-state-public {
             padding: 42px 24px;
             border: 1px dashed var(--utm-border);
@@ -349,6 +433,10 @@ try {
             .poster-file {
                 align-items: flex-start;
                 flex-direction: column;
+            }
+
+            .poster-manage-actions {
+                grid-template-columns: 1fr;
             }
         }
     </style>
@@ -375,7 +463,7 @@ try {
             <div class="catalog-title">
                 <div class="poster-code mb-2">Public Access</div>
                 <h1>Project Poster Gallery</h1>
-                <p>Browse final year project poster uploads and project summaries without signing in. Editing, uploads, comments, and deletion remain available only inside authenticated dashboards.</p>
+                <p>Browse final year project poster uploads and project summaries without signing in.</p>
             </div>
             <div class="catalog-stats">
                 <div class="stat-tile">
@@ -420,10 +508,14 @@ try {
                     $searchText = strtolower($project['title'] . ' ' . $project['description'] . ' ' . $project['lecturer'] . ' ' . $studentNames . ' ' . $posterNames);
                     ?>
                     <article class="poster-card poster-item" data-search="<?= publicPosterE($searchText) ?>" data-year="<?= publicPosterE((string) $project['study_year']) ?>">
-                        <div class="poster-preview">
-                            <div class="poster-icon" aria-hidden="true">
-                                <i class="bi bi-file-earmark-richtext"></i>
-                            </div>
+                        <div class="poster-preview <?= !empty($project['header_photo']['path']) && publicPosterIsImageFile((string) $project['header_photo']['path']) ? 'has-photo' : '' ?>">
+                            <?php if (!empty($project['header_photo']['path']) && publicPosterIsImageFile((string) $project['header_photo']['path'])): ?>
+                                <img src="<?= publicPosterE($project['header_photo']['path']) ?>" alt="<?= publicPosterE($project['title']) ?> header photo">
+                            <?php else: ?>
+                                <div class="poster-icon" aria-hidden="true">
+                                    <i class="bi bi-file-earmark-richtext"></i>
+                                </div>
+                            <?php endif; ?>
                         </div>
                         <div class="poster-card-body">
                             <div>
@@ -445,17 +537,17 @@ try {
                                     <?php foreach ($project['posters'] as $poster): ?>
                                         <div class="poster-file">
                                             <div>
-                                                <div class="poster-file-name"><?= publicPosterE($poster['name'] ?: 'Project poster') ?></div>
+                                                <div class="poster-file-name">POSTER</div>
                                                 <div class="small text-muted">
                                                     <?= $poster['uploaded_at'] ? publicPosterE(date('d M Y', strtotime((string) $poster['uploaded_at']))) : 'Upload date unavailable' ?>
                                                 </div>
                                             </div>
                                             <?php if ($poster['path']): ?>
                                                 <div class="poster-actions">
-                                                    <a class="btn btn-outline-secondary btn-icon" href="<?= publicPosterE($poster['path']) ?>" target="_blank" rel="noopener" aria-label="View poster">
+                                                    <button class="btn btn-outline-secondary btn-icon" type="button" aria-label="View poster" onclick="openPosterPreview(<?= publicPosterE(json_encode($poster['path'])) ?>)">
                                                         <i class="bi bi-eye"></i>
-                                                    </a>
-                                                    <a class="btn btn-utm btn-icon" href="<?= publicPosterE($poster['path']) ?>" download="<?= publicPosterE($poster['name'] ?: 'project-poster') ?>" aria-label="Download poster">
+                                                    </button>
+                                                    <a class="btn btn-utm btn-icon" href="<?= publicPosterE($poster['path']) ?>" download="POSTER" aria-label="Download poster">
                                                         <i class="bi bi-download"></i>
                                                     </a>
                                                 </div>
@@ -474,7 +566,33 @@ try {
         <?php endif; ?>
     </main>
 
+    <div class="modal fade" id="posterPreviewModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered">
+            <div class="modal-content poster-preview-modal">
+                <div class="modal-header">
+                    <h2 class="modal-title h5">POSTER</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <iframe id="posterPreviewFrame" title="Poster preview"></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        function openPosterPreview(path) {
+            const frame = document.getElementById('posterPreviewFrame');
+            frame.src = path;
+            const modal = new bootstrap.Modal(document.getElementById('posterPreviewModal'));
+            modal.show();
+        }
+
+        document.getElementById('posterPreviewModal')?.addEventListener('hidden.bs.modal', () => {
+            document.getElementById('posterPreviewFrame').src = '';
+        });
+
         const searchInput = document.getElementById('posterSearch');
         const yearFilter = document.getElementById('yearFilter');
         const posterItems = Array.from(document.querySelectorAll('.poster-item'));

@@ -21,10 +21,7 @@
             <i class="bi bi-people-fill"></i>
             <span>Students</span>
         </a>
-        <a class="nav-link <?= $currentPage === 'lecturer_submissions.php' ? 'active' : '' ?>" href="lecturer_submissions.php">
-            <i class="bi bi-file-earmark-check-fill"></i>
-            <span>Submissions</span>
-        </a>
+     
         <a class="nav-link <?= $currentPage === 'lecturer_grades.php' ? 'active' : '' ?>" href="lecturer_grades.php">
             <i class="bi bi-star-fill"></i>
             <span>Grades</span>

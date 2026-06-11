@@ -14,6 +14,7 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'student'
 $studentId = (int) $_SESSION['user_id'];
 $action = $_REQUEST['action'] ?? '';
 $projectId = (int) ($_REQUEST['project_id'] ?? 0);
+$returnTo = (string) ($_REQUEST['return_to'] ?? '');
 
 // Simple flash helper
 function set_flash(string $msg, string $type = 'success'): void
@@ -56,10 +57,46 @@ function notifyProjectLecturer(PDO $db, int $projectId, int $studentId, string $
     }
 }
 
+function ensureStudentOwnsProject(PDO $db, int $projectId, int $studentId): void
+{
+    $stmt = $db->prepare("SELECT COUNT(*) FROM project_members WHERE project_id = ? AND user_id = ? AND role = 'student'");
+    $stmt->execute([$projectId, $studentId]);
+
+    if ((int) $stmt->fetchColumn() === 0) {
+        throw new RuntimeException('You are not assigned to this project.');
+    }
+}
+
+function redirectAfterStudentProjectAction(int $projectId, string $returnTo, string $anchor = ''): void
+{
+    if ($returnTo === 'posters') {
+        header('Location: ../student/student_posters.php?project_id=' . $projectId);
+        exit;
+    }
+
+    header('Location: ../student/student_project.php?project_id=' . $projectId . $anchor);
+    exit;
+}
+
 try {
     if ($action === 'upload_file' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($projectId <= 0) throw new RuntimeException('Invalid project');
         if (!isset($_FILES['project_file'])) throw new RuntimeException('No file uploaded');
+        ensureStudentOwnsProject($db, $projectId, $studentId);
+
+        $uploadType = (string) ($_POST['upload_type'] ?? 'document');
+        $allowedTypes = ['document', 'poster', 'header_photo'];
+        if (!in_array($uploadType, $allowedTypes, true)) {
+            $uploadType = 'document';
+        }
+
+        if ($uploadType === 'poster') {
+            $existingPosterStmt = $db->prepare("SELECT COUNT(*) FROM files WHERE project_id = ? AND file_type = 'poster'");
+            $existingPosterStmt->execute([$projectId]);
+            if ((int) $existingPosterStmt->fetchColumn() > 0) {
+                throw new RuntimeException('Please delete the previous poster before uploading a new one.');
+            }
+        }
 
         $file = $_FILES['project_file'];
         if ($file['error'] !== UPLOAD_ERR_OK) throw new RuntimeException('Upload failed');
@@ -70,12 +107,8 @@ try {
         }
 
         $origName = basename($file['name']);
-        $ext = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
-        if ($ext !== 'pdf') {
-            throw new RuntimeException('Please submit only PDF files.');
-        }
 
-        $safeName = time() . '_' . preg_replace('/[^A-Za-z0-9_\-\.]/', '_', $origName);
+        $safeName = time() . '_' . $uploadType . '_' . preg_replace('/[^A-Za-z0-9_\-\.]/', '_', $origName);
         $destDir = __DIR__ . '/../public/uploads/';
         if (!is_dir($destDir)) mkdir($destDir, 0755, true);
         $destPath = $destDir . $safeName;
@@ -85,23 +118,31 @@ try {
         }
 
         $webPath = '/public/uploads/' . $safeName;
-        $stmt = $db->prepare('INSERT INTO files (project_id, file_name_encrypted, file_path_encrypted, uploaded_by) VALUES (?, ?, ?, ?)');
-        $stmt->execute([$projectId, encryptData($origName), encryptData($webPath), $studentId]);
+        $stmt = $db->prepare('INSERT INTO files (project_id, file_name_encrypted, file_path_encrypted, file_type, uploaded_by) VALUES (?, ?, ?, ?, ?)');
+        $stmt->execute([$projectId, encryptData($origName), encryptData($webPath), $uploadType, $studentId]);
 
-        notifyProjectLecturer(
-            $db,
-            $projectId,
-            $studentId,
-            sprintf('Student %s uploaded a new file "%s" for project %s.', $_SESSION['user_name'] ?? 'A student', $origName, 'UTM-FYP-' . str_pad((string) $projectId, 4, '0', STR_PAD_LEFT))
-        );
+        if ($uploadType === 'poster') {
+            $uploadLabel = 'poster';
+        } elseif ($uploadType === 'header_photo') {
+            $uploadLabel = 'header photo';
+        } else {
+            $uploadLabel = 'file';
+        }
 
-        // mark submission as pending
-        $stmt2 = $db->prepare('INSERT INTO submissions (project_id, status) VALUES (?, ?)');
-        $stmt2->execute([$projectId, 'pending']);
+        if ($uploadType === 'document') {
+            notifyProjectLecturer(
+                $db,
+                $projectId,
+                $studentId,
+                sprintf('Student %s uploaded a new file "%s" for project %s.', $_SESSION['user_name'] ?? 'A student', $origName, 'UTM-FYP-' . str_pad((string) $projectId, 4, '0', STR_PAD_LEFT))
+            );
 
-        set_flash('File uploaded successfully.');
-        header('Location: ../student/student_project.php?project_id=' . $projectId . '#uploadBox');
-        exit;
+            $stmt2 = $db->prepare('INSERT INTO submissions (project_id, status) VALUES (?, ?)');
+            $stmt2->execute([$projectId, 'pending']);
+        }
+
+        set_flash(ucfirst($uploadLabel) . ' uploaded successfully.');
+        redirectAfterStudentProjectAction($projectId, $returnTo, '#uploadBox');
     }
 
     if ($action === 'generate_proposal' && $_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -205,11 +246,18 @@ try {
         $fileId = (int) ($_POST['file_id'] ?? 0);
         if ($fileId <= 0) throw new RuntimeException('Invalid file id');
 
-        $stmt = $db->prepare('SELECT f.file_path_encrypted, f.uploaded_by FROM files f WHERE f.file_id = ? AND f.project_id = ?');
+        ensureStudentOwnsProject($db, $projectId, $studentId);
+
+        $stmt = $db->prepare('SELECT f.file_path_encrypted, f.file_type, f.uploaded_by FROM files f WHERE f.file_id = ? AND f.project_id = ?');
         $stmt->execute([$fileId, $projectId]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$row) throw new RuntimeException('File not found');
-        if ((int) $row['uploaded_by'] !== $studentId) throw new RuntimeException('Not allowed to delete this file');
+
+        $fileType = (string) ($row['file_type'] ?? 'document');
+        $isPosterManagerDelete = $returnTo === 'posters' && in_array($fileType, ['poster', 'header_photo'], true);
+        if (!$isPosterManagerDelete && (int) $row['uploaded_by'] !== $studentId) {
+            throw new RuntimeException('Not allowed to delete this file');
+        }
 
         $path = decryptData($row['file_path_encrypted']);
         $fsPath = __DIR__ . '/../' . ltrim($path, '/');
@@ -226,8 +274,7 @@ try {
         );
 
         set_flash('File deleted.');
-        header('Location: ../student/student_project.php?project_id=' . $projectId);
-        exit;
+        redirectAfterStudentProjectAction($projectId, $returnTo);
     }
 
     if ($action === 'delete_comment' && $_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -295,6 +342,10 @@ try {
     exit;
 } catch (Throwable $e) {
     set_flash('Error: ' . $e->getMessage(), 'danger');
+    if ($returnTo === 'posters' && $projectId > 0) {
+        header('Location: ../student/student_posters.php?project_id=' . $projectId);
+        exit;
+    }
     header('Location: ../student/student_project.php?project_id=' . $projectId);
     exit;
 }

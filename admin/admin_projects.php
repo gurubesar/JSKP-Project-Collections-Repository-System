@@ -40,6 +40,27 @@ function adminProjectStudyYear(?int $studyYear): ?int
     return $studyYear !== null && $studyYear >= 1 && $studyYear <= 5 ? $studyYear : null;
 }
 
+function adminProjectCreateFolder(int $projectId, string $projectTitle): void
+{
+    $folderName = trim(preg_replace('/[\/\\\\:*?"<>|]+/', '-', $projectTitle));
+    $folderName = preg_replace('/\s+/', ' ', (string) $folderName);
+    $folderName = trim((string) $folderName, " .\t\n\r\0\x0B");
+
+    if ($folderName === '') {
+        $folderName = adminProjectCode($projectId);
+    }
+
+    $baseDir = __DIR__ . '/../public/uploads/projects';
+    if (!is_dir($baseDir)) {
+        mkdir($baseDir, 0755, true);
+    }
+
+    $folderPath = $baseDir . '/' . $folderName;
+    if (!is_dir($folderPath)) {
+        mkdir($folderPath, 0755, true);
+    }
+}
+
 function adminProjectAssertLecturer(PDO $db, int $lecturerId): void
 {
     $stmt = $db->prepare("SELECT COUNT(*) FROM users WHERE user_id = ? AND role = 'lecturer'");
@@ -50,7 +71,7 @@ function adminProjectAssertLecturer(PDO $db, int $lecturerId): void
     }
 }
 
-function adminProjectValidStudentIds(PDO $db, array $studentIds): array
+function adminProjectValidStudentIds(PDO $db, array $studentIds, ?int $currentProjectId = null): array
 {
     $studentIds = array_values(array_unique(array_filter(array_map('intval', $studentIds))));
 
@@ -70,6 +91,44 @@ function adminProjectValidStudentIds(PDO $db, array $studentIds): array
         throw new RuntimeException('One or more selected students were not found.');
     }
 
+    $placeholders = implode(',', array_fill(0, count($studentIds), '?'));
+    $params = $studentIds;
+    $projectFilter = '';
+    if ($currentProjectId !== null && $currentProjectId > 0) {
+        $projectFilter = ' AND pm.project_id <> ?';
+        $params[] = $currentProjectId;
+    }
+
+    $stmt = $db->prepare(
+        "SELECT pm.user_id, pm.project_id, p.title_encrypted
+         FROM project_members pm
+         INNER JOIN projects p ON p.project_id = pm.project_id
+         WHERE pm.role = 'student'
+           AND pm.user_id IN ($placeholders)
+           $projectFilter"
+    );
+    $stmt->execute($params);
+    $assignedRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    if ($assignedRows) {
+        $studentNamesById = [];
+        $stmt = $db->prepare("SELECT user_id, name_encrypted FROM users WHERE user_id IN ($placeholders)");
+        $stmt->execute($studentIds);
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $userRow) {
+            $studentNamesById[(int) $userRow['user_id']] = adminProjectDecrypt($userRow['name_encrypted'] ?? '') ?: 'Student #' . (int) $userRow['user_id'];
+        }
+
+        $conflicts = [];
+        foreach ($assignedRows as $assignedRow) {
+            $assignedProjectId = (int) $assignedRow['project_id'];
+            $conflicts[] = ($studentNamesById[(int) $assignedRow['user_id']] ?? 'Selected student')
+                . ' is already assigned to '
+                . adminProjectCode($assignedProjectId);
+        }
+
+        throw new RuntimeException('One student can only be assigned to one project. ' . implode('; ', $conflicts) . '.');
+    }
+
     return $validStudentIds;
 }
 
@@ -86,7 +145,7 @@ function adminProjectSyncMembers(PDO $db, int $projectId, int $lecturerId, array
     }
 }
 
-function adminProjectRenderStudentPicker(string $pickerId, array $studentRows, array $selectedStudentIds = []): void
+function adminProjectRenderStudentPicker(string $pickerId, array $studentRows, array $selectedStudentIds = [], ?int $currentProjectId = null): void
 {
     $selectedStudentIds = array_map('intval', $selectedStudentIds);
     $courses = array_values(array_unique(array_filter(array_map(static fn($student): string => (string) ($student['course'] ?? ''), $studentRows))));
@@ -121,14 +180,20 @@ function adminProjectRenderStudentPicker(string $pickerId, array $studentRows, a
                 $course = (string) ($student['course'] ?? '');
                 $haystack = strtolower($name . ' ' . $matric . ' ' . $course);
                 $checked = in_array($studentId, $selectedStudentIds, true);
+                $assignedProjectId = (int) ($student['assigned_project_id'] ?? 0);
+                $assignedProjectCode = (string) ($student['assigned_project_code'] ?? '');
+                $assignedElsewhere = $assignedProjectId > 0 && $assignedProjectId !== (int) ($currentProjectId ?? 0);
                 ?>
-                <label class="student-check-row" data-student-option data-search="<?= htmlspecialchars($haystack, ENT_QUOTES, 'UTF-8') ?>" data-course="<?= htmlspecialchars(strtolower($course), ENT_QUOTES, 'UTF-8') ?>">
-                    <input class="form-check-input" type="checkbox" name="student_ids[]" value="<?= htmlspecialchars((string) $studentId, ENT_QUOTES, 'UTF-8') ?>" <?= $checked ? 'checked' : '' ?>>
+                <label class="student-check-row <?= $assignedElsewhere ? 'is-unavailable' : '' ?>" data-student-option data-search="<?= htmlspecialchars($haystack, ENT_QUOTES, 'UTF-8') ?>" data-course="<?= htmlspecialchars(strtolower($course), ENT_QUOTES, 'UTF-8') ?>" data-unavailable="<?= $assignedElsewhere ? '1' : '0' ?>">
+                    <input class="form-check-input" type="checkbox" name="student_ids[]" value="<?= htmlspecialchars((string) $studentId, ENT_QUOTES, 'UTF-8') ?>" <?= $checked ? 'checked' : '' ?> <?= $assignedElsewhere ? 'disabled' : '' ?>>
                     <span class="student-check-main">
                         <span class="student-check-name"><?= htmlspecialchars($name, ENT_QUOTES, 'UTF-8') ?></span>
-                        <span class="student-check-meta"><?= htmlspecialchars($matric ?: 'No matric no.', ENT_QUOTES, 'UTF-8') ?><?= $course ? ' · ' . htmlspecialchars($course, ENT_QUOTES, 'UTF-8') : '' ?></span>
+                        <span class="student-check-meta">
+                            <?= htmlspecialchars($matric ?: 'No matric no.', ENT_QUOTES, 'UTF-8') ?><?= $course ? ' · ' . htmlspecialchars($course, ENT_QUOTES, 'UTF-8') : '' ?>
+                            <?= $assignedElsewhere ? ' · Assigned to ' . htmlspecialchars($assignedProjectCode, ENT_QUOTES, 'UTF-8') : '' ?>
+                        </span>
                     </span>
-                    <span class="student-check-add"><?= $checked ? 'Added' : 'Add' ?></span>
+                    <span class="student-check-add"><?= $assignedElsewhere ? 'Unavailable' : ($checked ? 'Added' : 'Add') ?></span>
                 </label>
             <?php endforeach; ?>
         </div>
@@ -178,6 +243,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $stmt = $db->prepare('UPDATE projects SET title_encrypted = ? WHERE project_id = ?');
             $stmt->execute([encryptData($projectTitle), $projectId]);
 
+            adminProjectCreateFolder($projectId, $projectTitle);
             adminProjectSyncMembers($db, $projectId, $lecturerId, $validStudentIds);
 
             $db->commit();
@@ -221,7 +287,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             }
 
             adminProjectAssertLecturer($db, $lecturerId);
-            $validStudentIds = adminProjectValidStudentIds($db, $studentIds);
+            $validStudentIds = adminProjectValidStudentIds($db, $studentIds, $projectId);
 
             $stmt = $db->prepare(
                 'UPDATE projects SET title_encrypted = ?, description_encrypted = ?, lecturer_id = ?, study_year = ? WHERE project_id = ?'
@@ -313,6 +379,36 @@ unset($lecturer);
 foreach ($studentRows as &$student) {
     $student['name'] = adminProjectDecrypt($student['name_encrypted'] ?? '');
     $student['email'] = adminProjectDecrypt($student['email_encrypted'] ?? '');
+    $student['assigned_project_id'] = 0;
+    $student['assigned_project_code'] = '';
+}
+unset($student);
+
+$assignedStudentRows = $db->query(
+    "SELECT pm.user_id, pm.project_id, p.title_encrypted
+     FROM project_members pm
+     INNER JOIN projects p ON p.project_id = pm.project_id
+     WHERE pm.role = 'student'
+     ORDER BY pm.project_id ASC"
+)->fetchAll(PDO::FETCH_ASSOC);
+
+$studentAssignmentById = [];
+foreach ($assignedStudentRows as $assignedStudent) {
+    $assignedProjectId = (int) $assignedStudent['project_id'];
+    $studentAssignmentById[(int) $assignedStudent['user_id']] = [
+        'project_id' => $assignedProjectId,
+        'project_code' => adminProjectCode($assignedProjectId),
+        'project_title' => adminProjectDecrypt($assignedStudent['title_encrypted'] ?? ''),
+    ];
+}
+
+foreach ($studentRows as &$student) {
+    $assignment = $studentAssignmentById[(int) ($student['user_id'] ?? 0)] ?? null;
+    if ($assignment) {
+        $student['assigned_project_id'] = $assignment['project_id'];
+        $student['assigned_project_code'] = $assignment['project_code'];
+        $student['assigned_project_title'] = $assignment['project_title'];
+    }
 }
 unset($student);
 
@@ -628,7 +724,7 @@ $selectedStudentIds = array_map(
                     </div>
                     <div class="col-12">
                         <label class="form-label fw-semibold" for="editProjectStudents<?= $project['id'] ?>">Students</label>
-                        <?php adminProjectRenderStudentPicker('editProjectStudents' . (string) $project['id'], $studentRows, $selectedStudentIds); ?>
+                        <?php adminProjectRenderStudentPicker('editProjectStudents' . (string) $project['id'], $studentRows, $selectedStudentIds, (int) $project['id']); ?>
                         <div class="form-text">Tick students to add them to this project.</div>
                     </div>
                     <div class="col-12">
@@ -708,6 +804,7 @@ document.querySelectorAll('[data-student-picker]').forEach((picker) => {
             const checkbox = row.querySelector('input[type="checkbox"]');
             const addLabel = row.querySelector('.student-check-add');
             const isChecked = Boolean(checkbox?.checked);
+            const isUnavailable = row.dataset.unavailable === '1';
             const matchesSearch = !query || (row.dataset.search || '').includes(query);
             const matchesCourse = !course || row.dataset.course === course;
             const isVisible = matchesSearch && matchesCourse;
@@ -716,7 +813,7 @@ document.querySelectorAll('[data-student-picker]').forEach((picker) => {
             row.classList.toggle('d-none', !isVisible);
             if (isVisible) visibleCount++;
             if (isChecked) selectedCount++;
-            if (addLabel) addLabel.textContent = isChecked ? 'Added' : 'Add';
+            if (addLabel) addLabel.textContent = isUnavailable ? 'Unavailable' : (isChecked ? 'Added' : 'Add');
         });
 
         if (countLabel) {

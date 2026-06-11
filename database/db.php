@@ -62,6 +62,7 @@ function initializeDatabase(PDO $db): void
     $schema = file_get_contents($schemaFile);
     $db->exec($schema);
     ensureProjectColumns($db);
+    ensureFileColumns($db);
 }
 
 function ensureProjectColumns(PDO $db): void
@@ -104,3 +105,36 @@ function ensureProjectColumns(PDO $db): void
 }
 
 ensureProjectColumns($db);
+
+function ensureFileColumns(PDO $db): void
+{
+    try {
+        $driver = $db->getAttribute(PDO::ATTR_DRIVER_NAME);
+
+        if ($driver === 'sqlite') {
+            $columns = $db->query("PRAGMA table_info(files)")->fetchAll(PDO::FETCH_ASSOC);
+            $names = array_map(static fn($column) => $column['name'] ?? '', $columns);
+
+            if (!in_array('file_type', $names, true)) {
+                $db->exec("ALTER TABLE files ADD COLUMN file_type TEXT NOT NULL DEFAULT 'document'");
+            }
+            return;
+        }
+
+        if ($driver === 'pgsql') {
+            $db->exec("ALTER TABLE files ADD COLUMN IF NOT EXISTS file_type VARCHAR(50) NOT NULL DEFAULT 'document'");
+            return;
+        }
+
+        if ($driver === 'mysql') {
+            $columns = $db->query("SHOW COLUMNS FROM files LIKE 'file_type'")->fetchAll(PDO::FETCH_ASSOC);
+            if (count($columns) === 0) {
+                $db->exec("ALTER TABLE files ADD COLUMN file_type VARCHAR(50) NOT NULL DEFAULT 'document'");
+            }
+        }
+    } catch (Throwable $error) {
+        // Keep the app available if the table does not exist yet; initializeDatabase creates it.
+    }
+}
+
+ensureFileColumns($db);

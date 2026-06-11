@@ -60,6 +60,7 @@ try {
              ORDER BY submitted_at DESC
              LIMIT 1
          )
+         WHERE pm.role = 'student' AND u.role = 'student'
          ORDER BY u.user_id ASC, p.project_id ASC"
     );
     $stmt->execute([$lecturerId]);

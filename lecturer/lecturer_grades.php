@@ -770,100 +770,86 @@ require_once __DIR__ . '/lecturer_header.php';
                     <div><i class="bi bi-star fs-2 d-block mb-2"></i>No projects found for grading.</div>
                 </div>
             <?php else: ?>
-                <div class="row g-4" id="gradeGrid">
-                    <?php foreach ($projects as $project):
-                        $marks = $project['marks'];
-                        $isGraded = $marks !== null;
-                        $percentage = $isGraded ? (float) ($marks['percentage'] ?? 0) : 0;
-                        $rawTotal = $isGraded ? (float) ($marks['raw_total'] ?? 0) : 0;
-                        $maxTotal = $isGraded ? (float) ($marks['max_total'] ?? $rubricMaxTotal) : $rubricMaxTotal;
-                        $grade = $isGraded ? gradeLabel($percentage) : null;
-                        $scores = $isGraded ? ($marks['criteria_scores'] ?? []) : [];
-                        $searchText = strtolower($project['title'] . ' ' . implode(' ', $project['students']));
-                    ?>
-                    <div class="col-12 col-lg-6 col-xxl-4 grade-item"
-                         data-graded="<?= $isGraded ? 'graded' : 'ungraded' ?>"
-                         data-year="<?= e($project['study_year']) ?>"
-                         data-search="<?= e($searchText) ?>">
-                        <article class="grade-card">
-                            <div class="d-flex align-items-start justify-content-between gap-3 mb-3">
-                                <div class="grade-badge grade-<?= $isGraded ? e($grade) : 'ungraded' ?>">
-                                    <?= $isGraded ? e($grade) : '?' ?>
-                                </div>
-                                <div class="flex-grow-1 min-w-0">
-                                    <small class="text-muted d-block mb-1"><?= e($project['code']) ?></small>
-                                    <h2 class="project-title mb-0"><?= e($project['title']) ?></h2>
-                                </div>
-                                <span class="status-badge status-<?= e($project['status']) ?> flex-shrink-0">
-                                    <?= e($statusLabels[$project['status']] ?? $project['status']) ?>
-                                </span>
-                            </div>
-
-                            <div class="mb-3" style="font-size:.875rem; color:var(--lecturer-text); line-height:1.7;">
-                                <strong><?= e(count($project['students'])) ?> Student<?= count($project['students']) !== 1 ? 's' : '' ?></strong>
-                                <?php foreach ($project['students'] as $index => $studentName): ?>
-                                    <div><?= e($index + 1) ?>. <?= e($studentName) ?></div>
-                                <?php endforeach; ?>
-                                <?php if (empty($project['students'])): ?>
-                                    <div class="text-muted">No students listed</div>
-                                <?php endif; ?>
-                            </div>
-
-                            <?php if ($isGraded): ?>
-                                <div class="mb-3">
-                                    <?php if (!empty($marks['legacy'])): ?>
-                                        <div class="mb-2 text-muted" style="font-size:.82rem;">Legacy marks saved before rubric grading was added.</div>
-                                    <?php else: ?>
-                                        <?php foreach ($rubric as $section):
-                                            $sectionMax = sectionMax($section);
-                                            $sectionScore = sectionScore($section, $scores);
-                                            $width = $sectionMax > 0 ? round(($sectionScore / $sectionMax) * 100) : 0;
-                                        ?>
-                                            <div class="mark-row">
-                                                <span class="mark-label"><?= e($section['title']) ?> <small class="text-muted">/<?= e(formatScore($sectionMax)) ?></small></span>
-                                                <div class="mark-bar-wrap"><div class="mark-bar" style="width:<?= e($width) ?>%"></div></div>
-                                                <span class="mark-score"><?= e(formatScore($sectionScore)) ?></span>
+                <div class="dashboard-card p-0 overflow-hidden">
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Project</th>
+                                    <th>Students</th>
+                                    <th>Study Year</th>
+                                    <th>Submission Status</th>
+                                    <th>Grade</th>
+                                    <th>Total</th>
+                                    <th>Last Updated</th>
+                                    <th class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="gradeGrid">
+                                <?php foreach ($projects as $project):
+                                    $marks = $project['marks'];
+                                    $isGraded = $marks !== null;
+                                    $percentage = $isGraded ? (float) ($marks['percentage'] ?? 0) : 0;
+                                    $rawTotal = $isGraded ? (float) ($marks['raw_total'] ?? 0) : 0;
+                                    $maxTotal = $isGraded ? (float) ($marks['max_total'] ?? $rubricMaxTotal) : $rubricMaxTotal;
+                                    $grade = $isGraded ? gradeLabel($percentage) : null;
+                                    $scores = $isGraded ? ($marks['criteria_scores'] ?? []) : [];
+                                    $searchText = strtolower($project['title'] . ' ' . implode(' ', $project['students']));
+                                ?>
+                                    <tr class="grade-item"
+                                        data-graded="<?= $isGraded ? 'graded' : 'ungraded' ?>"
+                                        data-year="<?= e($project['study_year']) ?>"
+                                        data-search="<?= e($searchText) ?>">
+                                        <td>
+                                            <div class="fw-bold"><?= e($project['title']) ?></div>
+                                            <small class="text-muted"><?= e($project['code']) ?></small>
+                                        </td>
+                                        <td>
+                                            <div class="fw-semibold"><?= e(count($project['students'])) ?> Student<?= count($project['students']) !== 1 ? 's' : '' ?></div>
+                                            <?php if ($project['students']): ?>
+                                                <div class="small text-muted"><?= e(implode(', ', $project['students'])) ?></div>
+                                            <?php else: ?>
+                                                <div class="small text-muted">No students listed</div>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td><?= $project['study_year'] !== '' ? e($project['study_year']) : 'N/A' ?></td>
+                                        <td><span class="status-badge status-<?= e($project['status']) ?>"><?= e($statusLabels[$project['status']] ?? $project['status']) ?></span></td>
+                                        <td>
+                                            <span class="grade-badge grade-<?= $isGraded ? e($grade) : 'ungraded' ?>">
+                                                <?= $isGraded ? e($grade) : '?' ?>
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <?php if ($isGraded): ?>
+                                                <strong><?= e(formatScore($percentage)) ?>%</strong>
+                                                <div class="small text-muted"><?= e(formatScore($rawTotal)) ?> / <?= e(formatScore($maxTotal)) ?></div>
+                                            <?php else: ?>
+                                                <span class="text-muted">Not graded</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <?= !empty($marks['saved_at']) ? e(date('d/m/Y H:i', strtotime($marks['saved_at']))) : '<span class="text-muted">-</span>' ?>
+                                        </td>
+                                        <td class="text-end">
+                                            <div class="d-inline-flex flex-wrap justify-content-end gap-2">
+                                                <button class="btn btn-assign"
+                                                        type="button"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#marksModal"
+                                                        data-project-id="<?= e($project['id']) ?>"
+                                                        data-project-title="<?= e($project['title']) ?>"
+                                                        data-scores="<?= e(json_encode($scores)) ?>">
+                                                    <i class="bi bi-pencil-fill me-1"></i>
+                                                    <?= $isGraded ? 'Edit Rubric' : 'Grade Rubric' ?>
+                                                </button>
+                                              
                                             </div>
-                                        <?php endforeach; ?>
-                                    <?php endif; ?>
-                                    <div class="d-flex align-items-center justify-content-between mt-2 pt-2"
-                                         style="border-top:1px solid var(--lecturer-border);">
-                                        <span class="text-muted" style="font-size:.82rem;">Total <?= e(formatScore($rawTotal)) ?> / <?= e(formatScore($maxTotal)) ?></span>
-                                        <strong style="font-size:1.1rem; color:var(--lecturer-maroon);">
-                                            <?= e(formatScore($percentage)) ?>% - <?= e($grade) ?>
-                                        </strong>
-                                    </div>
-                                    <?php if (!empty($marks['saved_at'])): ?>
-                                        <div class="text-muted mt-1" style="font-size:.75rem;">
-                                            Last updated: <?= e(date('d/m/Y H:i', strtotime($marks['saved_at']))) ?>
-                                        </div>
-                                    <?php endif; ?>
-                                </div>
-                            <?php else: ?>
-                                <div class="mb-3 p-3 text-center text-muted"
-                                     style="background:#f8f9fc; border:1px dashed var(--lecturer-border); border-radius:10px; font-size:.875rem;">
-                                    <i class="bi bi-pencil-square me-1"></i>No rubric grades assigned yet
-                                </div>
-                            <?php endif; ?>
-
-                            <div class="action-row">
-                                <button class="btn btn-assign"
-                                        type="button"
-                                        data-bs-toggle="modal"
-                                        data-bs-target="#marksModal"
-                                        data-project-id="<?= e($project['id']) ?>"
-                                        data-project-title="<?= e($project['title']) ?>"
-                                        data-scores="<?= e(json_encode($scores)) ?>">
-                                    <i class="bi bi-pencil-fill me-1"></i>
-                                    <?= $isGraded ? 'Edit Rubric' : 'Grade Rubric' ?>
-                                </button>
-                                <a class="btn btn-view" href="lecturer_submissions.php">
-                                    <i class="bi bi-eye me-1"></i>View Submission
-                                </a>
-                            </div>
-                        </article>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
                     </div>
-                    <?php endforeach; ?>
                 </div>
                 <div class="empty-state d-none mt-4" id="filteredEmpty">No projects match your filters.</div>
             <?php endif; ?>

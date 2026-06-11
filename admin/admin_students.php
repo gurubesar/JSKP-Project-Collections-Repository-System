@@ -249,7 +249,7 @@ require __DIR__ . '/admin_header.php';
                                 <th>Course</th>
                                 <th>Intake</th>
                                 <th>Created</th>
-                                <th class="text-end">Actions</th>
+                                        <th class="text-end student-actions-col">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -266,13 +266,15 @@ require __DIR__ . '/admin_header.php';
                                         <td><?= h($student['course']) ?></td>
                                         <td><?= h($student['intake']) ?></td>
                                         <td><?= h(date('M j, Y', strtotime($student['created_at']))) ?></td>
-                                        <td class="text-end">
-                                            <button class="btn btn-sm btn-outline-primary me-1" type="button" data-bs-toggle="modal" data-bs-target="#editStudentModal<?= $student['student_id'] ?>">
+                                        <td class="text-end student-actions-col">
+                                            <div class="student-action-buttons">
+                                            <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#editStudentModal<?= $student['student_id'] ?>">
                                                 <i class="bi bi-pencil"></i> Edit
                                             </button>
                                             <button class="btn btn-sm btn-outline-danger" type="button" data-bs-toggle="modal" data-bs-target="#deleteStudentModal<?= $student['student_id'] ?>">
                                                 <i class="bi bi-trash"></i> Delete
                                             </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>
@@ -284,6 +286,36 @@ require __DIR__ . '/admin_header.php';
         </div>
     </main>
 </div>
+
+<style>
+    .student-actions-col {
+        width: 168px;
+        white-space: nowrap;
+    }
+
+    .student-action-buttons {
+        display: inline-flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+    }
+
+    .student-action-buttons .btn {
+        min-width: 72px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        border-radius: 8px;
+        font-weight: 700;
+    }
+
+    @media (max-width: 760px) {
+        .student-actions-col {
+            width: auto;
+        }
+    }
+</style>
 
 <!-- Add Student Modal -->
 <div class="modal fade" id="addStudentModal" tabindex="-1" aria-labelledby="addStudentModalLabel" aria-hidden="true">

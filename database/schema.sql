@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS files (
   project_id INTEGER NOT NULL REFERENCES projects(project_id),
   file_name_encrypted TEXT NOT NULL,
   file_path_encrypted TEXT NOT NULL,
+  file_type TEXT NOT NULL DEFAULT 'document',
   uploaded_by INTEGER REFERENCES users(user_id),
   uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   UNIQUE (project_id, file_name_encrypted)

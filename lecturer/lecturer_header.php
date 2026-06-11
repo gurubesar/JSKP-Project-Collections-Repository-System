@@ -85,7 +85,12 @@ if (!function_exists('createNotification')) {
 if (!function_exists('fetchProjectStudentIds')) {
     function fetchProjectStudentIds(PDO $db, int $projectId): array
     {
-        $stmt = $db->prepare('SELECT user_id FROM project_members WHERE project_id = ?');
+        $stmt = $db->prepare(
+            "SELECT pm.user_id
+             FROM project_members pm
+             INNER JOIN users u ON u.user_id = pm.user_id
+             WHERE pm.project_id = ? AND pm.role = 'student' AND u.role = 'student'"
+        );
         $stmt->execute([$projectId]);
         return array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
     }
@@ -201,8 +206,8 @@ try {
         "SELECT u.user_id, u.name_encrypted, pm.role
          FROM project_members pm
          INNER JOIN users u ON u.user_id = pm.user_id
-         WHERE pm.project_id = ?
-         ORDER BY pm.role DESC, u.user_id ASC"
+         WHERE pm.project_id = ? AND pm.role = 'student' AND u.role = 'student'
+         ORDER BY u.user_id ASC"
     );
 
     foreach ($projectRows as $row) {

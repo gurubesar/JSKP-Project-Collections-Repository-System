@@ -27,7 +27,7 @@ try {
         "SELECT u.user_id, u.name_encrypted
          FROM project_members pm
          INNER JOIN users u ON u.user_id = pm.user_id
-         WHERE pm.project_id = ?
+         WHERE pm.project_id = ? AND pm.role = 'student' AND u.role = 'student'
          ORDER BY u.user_id ASC"
     );
 

@@ -362,6 +362,48 @@ function recentStudents(PDO $db): array
     }, $rows);
 }
 
+function dashboardProjectSummaries(PDO $db): array
+{
+    if (!tableExists($db, 'projects')) {
+        return [];
+    }
+
+    $rows = fetchRows(
+        $db,
+        "SELECT p.project_id, p.title_encrypted, p.study_year, p.created_at,
+                u.name_encrypted AS lecturer_name,
+                COUNT(DISTINCT CASE WHEN pm.role = 'student' THEN pm.user_id END) AS student_count,
+                COALESCE(s.latest_status, 'pending') AS latest_status
+         FROM projects p
+         LEFT JOIN users u ON u.user_id = p.lecturer_id
+         LEFT JOIN project_members pm ON pm.project_id = p.project_id
+         LEFT JOIN (
+             SELECT project_id, status AS latest_status
+             FROM submissions
+             WHERE submission_id IN (
+                 SELECT MAX(submission_id)
+                 FROM submissions
+                 GROUP BY project_id
+             )
+         ) s ON s.project_id = p.project_id
+         GROUP BY p.project_id, p.title_encrypted, p.study_year, p.created_at, u.name_encrypted, s.latest_status
+         ORDER BY p.created_at DESC, p.project_id DESC"
+    );
+
+    return array_map(static function (array $row): array {
+        $projectId = (int) ($row['project_id'] ?? 0);
+
+        return [
+            'code' => 'UTM-FYP-' . str_pad((string) $projectId, 4, '0', STR_PAD_LEFT),
+            'name' => isset($row['title_encrypted']) ? decryptData($row['title_encrypted']) : '',
+            'supervisor' => isset($row['lecturer_name']) ? decryptData($row['lecturer_name']) : '',
+            'student_count' => (int) ($row['student_count'] ?? 0),
+            'study_year' => $row['study_year'] ?? '',
+            'status' => ucfirst((string) ($row['latest_status'] ?? 'pending')),
+        ];
+    }, $rows);
+}
+
 $adminFlash = '';
 $adminFlashType = 'success';
 
@@ -391,6 +433,7 @@ $activeProjects = countTable($db, 'projects');
 $totalSubmissions = countTable($db, 'submissions');
 $totalRevenue = sumColumn($db, 'payments', 'amount');
 $recentStudents = recentStudents($db);
+$projectSummaries = dashboardProjectSummaries($db);
 
 [$enrollmentLabels, $enrollmentValues] = monthlyStudentCounts($db);
 $weeklyLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -417,9 +460,6 @@ $stats = [
                 <strong><?= h($adminName) ?></strong>
             </div>
             <div class="d-flex align-items-center gap-2 gap-sm-3 ms-auto">
-                <button class="icon-button" type="button" aria-label="Notifications">
-                    <i class="bi bi-bell"></i>
-                </button>
                 <div class="profile-chip">
                     <div class="profile-avatar"><?= h($adminInitial) ?></div>
                     <div class="d-none d-sm-block pe-1">
@@ -501,6 +541,48 @@ $stats = [
                             </div>
                         <?php endif; ?>
                     </article>
+                </div>
+            </section>
+
+            <section class="dashboard-card mb-4">
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-3">
+                    <div>
+                        <h2 class="h5 fw-bold mb-1">Project Summary</h2>
+                        <p class="text-muted mb-0">Project names, supervisors, and total assigned students.</p>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Project Code</th>
+                                <th>Project Name</th>
+                                <th>Supervisor</th>
+                                <th>Study Year</th>
+                                <th class="text-end">Total Students</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (!$projectSummaries): ?>
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-5">No projects available</td>
+                                </tr>
+                            <?php else: ?>
+                                <?php foreach ($projectSummaries as $project): ?>
+                                    <tr>
+                                        <td class="fw-semibold"><?= h($project['code']) ?></td>
+                                        <td><?= h($project['name'] ?: $project['code']) ?></td>
+                                        <td><?= h($project['supervisor'] ?: 'Not assigned') ?></td>
+                                        <td><?= $project['study_year'] !== '' ? h($project['study_year']) : '<span class="text-muted">Not set</span>' ?></td>
+                                        <td class="text-end fw-semibold"><?= h($project['student_count']) ?></td>
+                                        <td><span class="status-badge"><?= h($project['status']) ?></span></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
                 </div>
             </section>
 

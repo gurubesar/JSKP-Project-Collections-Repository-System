@@ -353,6 +353,16 @@ if (!function_exists('h')) {
             border-color: rgba(128, 0, 32, 0.12);
         }
 
+        .student-check-row.is-unavailable {
+            background: rgba(108, 117, 125, 0.08);
+            color: var(--admin-muted);
+            cursor: not-allowed;
+        }
+
+        .student-check-row.is-unavailable:hover {
+            border-color: transparent;
+        }
+
         .student-check-main {
             min-width: 0;
             display: grid;
@@ -396,6 +406,12 @@ if (!function_exists('h')) {
         .student-check-row:has(input:checked) .student-check-add {
             background: var(--admin-sidebar);
             color: #fff;
+        }
+
+        .student-check-row.is-unavailable .student-check-add {
+            min-width: 86px;
+            background: rgba(108, 117, 125, 0.14);
+            color: var(--admin-muted);
         }
 
         .student-picker-empty {

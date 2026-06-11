@@ -17,7 +17,10 @@ function e($value): string
 
 function decryptValue(?string $value): string
 {
-    if ($value === null || $value === '') return '';
+    if ($value === null || $value === '') {
+        return '';
+    }
+
     try {
         return decryptData($value);
     } catch (Throwable $error) {
@@ -32,91 +35,569 @@ function lecturerOwnsProject(PDO $db, int $lecturerId, int $projectId): bool
     return (int) $stmt->fetchColumn() > 0;
 }
 
-$lecturerId       = (int) ($_SESSION['user_id'] ?? 0);
-$lecturerName     = trim((string) ($_SESSION['user_name'] ?? 'Lecturer'));
+function rubricDefinition(): array
+{
+    return [
+        [
+            'id' => 'proposal',
+            'title' => 'Proposal: Week 1',
+            'subtitle' => '10%',
+            'criteria' => [
+                [
+                    'id' => 'problem_description',
+                    'label' => 'Problem Description & Significance',
+                    'max' => 3,
+                    'levels' => [
+                        '3' => 'Exceptional - well-defined, significant, clearly contextualized',
+                        '2' => 'Adequate - defined, significance/context slightly weak',
+                        '1' => 'Marginal - vague or lacking background research',
+                        '0' => 'Inadequate - no clear problem identified',
+                    ],
+                ],
+                [
+                    'id' => 'objectives_deliverables',
+                    'label' => 'Objectives & Deliverables',
+                    'max' => 3,
+                    'levels' => [
+                        '3' => 'Exceptional - SMART objectives and deliverables',
+                        '2' => 'Adequate - clear but some lack specificity',
+                        '1' => 'Marginal - too ambitious or vague',
+                        '0' => 'Inadequate - no clear objectives',
+                    ],
+                ],
+                [
+                    'id' => 'methodology_technical',
+                    'label' => 'Methodology & Technical Approach',
+                    'max' => 2,
+                    'levels' => [
+                        '2' => 'Exceptional - detailed approach, algorithms, and tools',
+                        '1.5' => 'Adequate - sound methodology with minor missing details',
+                        '1' => 'Marginal - superficial or partly inappropriate',
+                        '0' => 'Inadequate - no clear technical approach',
+                    ],
+                ],
+                [
+                    'id' => 'feasibility_timeline',
+                    'label' => 'Feasibility & Timeline',
+                    'max' => 2,
+                    'levels' => [
+                        '2' => 'Exceptional - realistic schedule with milestones and risks',
+                        '1.5' => 'Adequate - mostly realistic with minor risks',
+                        '1' => 'Marginal - vague or unrealistic schedule',
+                        '0' => 'Inadequate - no timeline provided',
+                    ],
+                ],
+            ],
+        ],
+        [
+            'id' => 'sprint1',
+            'title' => 'Sprint 1 Review: Week 3',
+            'subtitle' => '24%',
+            'criteria' => [
+                [
+                    'id' => 's1_user_stories',
+                    'label' => 'Product Backlog - User Stories Quality',
+                    'max' => 2,
+                    'levels' => [
+                        '2' => 'Excellent - clear, structured, valuable',
+                        '1' => 'Good - mostly clear',
+                        '0' => 'Weak - unclear, inconsistent',
+                    ],
+                ],
+                [
+                    'id' => 's1_prioritization',
+                    'label' => 'Product Backlog - Prioritization',
+                    'max' => 1,
+                    'levels' => [
+                        '1' => 'Excellent - logical, well-ordered',
+                        '0.5' => 'Good - some logic',
+                        '0' => 'Weak - random',
+                    ],
+                ],
+                [
+                    'id' => 's1_planning',
+                    'label' => 'Sprint Execution - Planning',
+                    'max' => 2,
+                    'levels' => [
+                        '2' => 'Excellent - realistic, well-scoped',
+                        '1' => 'Good - minor issues',
+                        '0' => 'Weak - poor planning',
+                    ],
+                ],
+                [
+                    'id' => 's1_completion',
+                    'label' => 'Sprint Execution - Completion',
+                    'max' => 2,
+                    'levels' => [
+                        '2' => 'Excellent - most stories done',
+                        '1' => 'Good - some incomplete',
+                        '0' => 'Weak - many incomplete',
+                    ],
+                ],
+                [
+                    'id' => 's1_features',
+                    'label' => 'System Functionality - Features',
+                    'max' => 3,
+                    'levels' => [
+                        '3' => 'Excellent - fully working',
+                        '2' => 'Good - mostly working',
+                        '1' => 'Weak - many broken',
+                    ],
+                ],
+                [
+                    'id' => 's1_integration',
+                    'label' => 'System Functionality - Integration',
+                    'max' => 3,
+                    'levels' => [
+                        '3' => 'Excellent - smooth flow',
+                        '2' => 'Good - minor issues',
+                        '1' => 'Weak - disconnected',
+                    ],
+                ],
+                [
+                    'id' => 's1_test_coverage',
+                    'label' => 'Testing & QA - Test Coverage',
+                    'max' => 2,
+                    'levels' => [
+                        '2' => 'Excellent - comprehensive',
+                        '1' => 'Good - partial',
+                        '0' => 'Weak - minimal',
+                    ],
+                ],
+                [
+                    'id' => 's1_bug_tracking',
+                    'label' => 'Testing & QA - Bug Tracking',
+                    'max' => 2,
+                    'levels' => [
+                        '2' => 'Excellent - proper tickets',
+                        '1' => 'Good - some tracking',
+                        '0' => 'Weak - no tracking',
+                    ],
+                ],
+                [
+                    'id' => 's1_role_execution',
+                    'label' => 'Scrum Roles & Collaboration - Role Execution',
+                    'max' => 7,
+                    'levels' => [
+                        '7' => 'Excellent - clear, active roles',
+                        '5' => 'Good - some imbalance',
+                        '3' => 'Weak - poor participation',
+                    ],
+                ],
+            ],
+        ],
+        [
+            'id' => 'sprint2',
+            'title' => 'Sprint 2 Review: Week 5',
+            'subtitle' => '24%',
+            'criteria' => [
+                [
+                    'id' => 's2_user_stories',
+                    'label' => 'Product Backlog - User Stories Quality',
+                    'max' => 2,
+                    'levels' => [
+                        '2' => 'Excellent - clear, structured, valuable',
+                        '1' => 'Good - mostly clear',
+                        '0' => 'Weak - unclear, inconsistent',
+                    ],
+                ],
+                [
+                    'id' => 's2_prioritization',
+                    'label' => 'Product Backlog - Prioritization',
+                    'max' => 1,
+                    'levels' => [
+                        '1' => 'Excellent - logical, well-ordered',
+                        '0.5' => 'Good - some logic',
+                        '0' => 'Weak - random',
+                    ],
+                ],
+                [
+                    'id' => 's2_planning',
+                    'label' => 'Sprint Execution - Planning',
+                    'max' => 2,
+                    'levels' => [
+                        '2' => 'Excellent - realistic, well-scoped',
+                        '1' => 'Good - minor issues',
+                        '0' => 'Weak - poor planning',
+                    ],
+                ],
+                [
+                    'id' => 's2_completion',
+                    'label' => 'Sprint Execution - Completion',
+                    'max' => 2,
+                    'levels' => [
+                        '2' => 'Excellent - most stories done',
+                        '1' => 'Good - some incomplete',
+                        '0' => 'Weak - many incomplete',
+                    ],
+                ],
+                [
+                    'id' => 's2_features',
+                    'label' => 'System Functionality - Features',
+                    'max' => 3,
+                    'levels' => [
+                        '3' => 'Excellent - fully working',
+                        '2' => 'Good - mostly working',
+                        '1' => 'Weak - many broken',
+                    ],
+                ],
+                [
+                    'id' => 's2_integration',
+                    'label' => 'System Functionality - Integration',
+                    'max' => 3,
+                    'levels' => [
+                        '3' => 'Excellent - smooth flow',
+                        '2' => 'Good - minor issues',
+                        '1' => 'Weak - disconnected',
+                    ],
+                ],
+                [
+                    'id' => 's2_test_coverage',
+                    'label' => 'Testing & QA - Test Coverage',
+                    'max' => 2,
+                    'levels' => [
+                        '2' => 'Excellent - comprehensive',
+                        '1' => 'Good - partial',
+                        '0' => 'Weak - minimal',
+                    ],
+                ],
+                [
+                    'id' => 's2_bug_tracking',
+                    'label' => 'Testing & QA - Bug Tracking',
+                    'max' => 2,
+                    'levels' => [
+                        '2' => 'Excellent - proper tickets',
+                        '1' => 'Good - some tracking',
+                        '0' => 'Weak - no tracking',
+                    ],
+                ],
+                [
+                    'id' => 's2_role_execution',
+                    'label' => 'Scrum Roles & Collaboration - Role Execution',
+                    'max' => 7,
+                    'levels' => [
+                        '7' => 'Excellent - clear, active roles',
+                        '5' => 'Good - some imbalance',
+                        '3' => 'Weak - poor participation',
+                    ],
+                ],
+            ],
+        ],
+        [
+            'id' => 'sprint3',
+            'title' => 'Sprint 3 Review: Week 7',
+            'subtitle' => '12%',
+            'criteria' => [
+                [
+                    'id' => 's3_user_stories',
+                    'label' => 'Product Backlog - User Stories Quality',
+                    'max' => 2,
+                    'levels' => [
+                        '2' => 'Excellent - clear, structured, valuable',
+                        '1' => 'Good - mostly clear',
+                        '0' => 'Weak - unclear, inconsistent',
+                    ],
+                ],
+                [
+                    'id' => 's3_prioritization',
+                    'label' => 'Product Backlog - Prioritization',
+                    'max' => 1,
+                    'levels' => [
+                        '1' => 'Excellent - logical, well-ordered',
+                        '0.5' => 'Good - some logic',
+                        '0' => 'Weak - random',
+                    ],
+                ],
+                [
+                    'id' => 's3_planning',
+                    'label' => 'Sprint Execution - Planning',
+                    'max' => 2,
+                    'levels' => [
+                        '2' => 'Excellent - realistic, well-scoped',
+                        '1' => 'Good - minor issues',
+                        '0' => 'Weak - poor planning',
+                    ],
+                ],
+                [
+                    'id' => 's3_completion',
+                    'label' => 'Sprint Execution - Completion',
+                    'max' => 1,
+                    'levels' => [
+                        '1' => 'Excellent - most stories done',
+                        '0.5' => 'Good - some incomplete',
+                        '0' => 'Weak - many incomplete',
+                    ],
+                ],
+                [
+                    'id' => 's3_role_execution',
+                    'label' => 'Scrum Roles & Collaboration - Role Execution',
+                    'max' => 6,
+                    'levels' => [
+                        '6' => 'Excellent - clear, active roles',
+                        '4' => 'Good - some imbalance',
+                        '2' => 'Weak - poor participation',
+                    ],
+                ],
+            ],
+        ],
+        [
+            'id' => 'final_product',
+            'title' => 'Final Presentation Working Product',
+            'subtitle' => '10%',
+            'criteria' => [
+                [
+                    'id' => 'demo_quality',
+                    'label' => 'Demo Quality',
+                    'max' => 5,
+                    'levels' => [
+                        '5' => 'Excellent - smooth, confident',
+                        '3' => 'Good - minor issues',
+                        '1' => 'Weak - poor demo',
+                    ],
+                ],
+                [
+                    'id' => 'explanation',
+                    'label' => 'Explanation',
+                    'max' => 5,
+                    'levels' => [
+                        '5' => 'Excellent - clear, structured',
+                        '3' => 'Good - some confusion',
+                        '1' => 'Weak - unclear',
+                    ],
+                ],
+            ],
+        ],
+        [
+            'id' => 'poster',
+            'title' => 'Poster',
+            'subtitle' => 'Rubric row weights',
+            'criteria' => [
+                [
+                    'id' => 'poster_content',
+                    'label' => 'Content Quality & Relevance',
+                    'max' => 15,
+                    'levels' => [
+                        '15' => 'Excellent - clear, accurate, comprehensive',
+                        '11.25' => 'Good - mostly clear, minor gaps',
+                        '9' => 'Satisfactory - basic content, some unclear sections',
+                        '6' => 'Weak - poor or irrelevant content',
+                    ],
+                ],
+                [
+                    'id' => 'poster_organization',
+                    'label' => 'Organization & Structure',
+                    'max' => 5,
+                    'levels' => [
+                        '5' => 'Excellent - logical flow and easy to follow',
+                        '3.75' => 'Good - generally well-structured',
+                        '3' => 'Satisfactory - some inconsistency',
+                        '2' => 'Weak - disorganized and difficult to follow',
+                    ],
+                ],
+                [
+                    'id' => 'poster_technical',
+                    'label' => 'Technical Depth & Accuracy',
+                    'max' => 15,
+                    'levels' => [
+                        '15' => 'Excellent - strong technical knowledge',
+                        '11.25' => 'Good - good understanding, minor errors',
+                        '9' => 'Satisfactory - basic explanation, lacks depth',
+                        '6' => 'Weak - many errors',
+                    ],
+                ],
+                [
+                    'id' => 'poster_presentation',
+                    'label' => 'Presentation Skills (Oral Explanation)',
+                    'max' => 10,
+                    'levels' => [
+                        '10' => 'Excellent - confident, clear, engaging',
+                        '7.5' => 'Good - clear explanation, minor hesitation',
+                        '6' => 'Satisfactory - basic, lacks confidence or clarity',
+                        '4' => 'Weak - unclear or unprepared',
+                    ],
+                ],
+                [
+                    'id' => 'poster_creativity',
+                    'label' => 'Creativity & Innovation',
+                    'max' => 5,
+                    'levels' => [
+                        '5' => 'Excellent - highly creative and innovative',
+                        '3.75' => 'Good - some creativity shown',
+                        '3' => 'Satisfactory - limited creativity',
+                        '2' => 'Weak - no creativity or originality',
+                    ],
+                ],
+            ],
+        ],
+    ];
+}
+
+function flattenRubric(array $rubric): array
+{
+    $criteria = [];
+    foreach ($rubric as $section) {
+        foreach ($section['criteria'] as $criterion) {
+            $criteria[$criterion['id']] = $criterion + ['section_id' => $section['id']];
+        }
+    }
+    return $criteria;
+}
+
+function rubricMaxTotal(array $rubric): float
+{
+    $total = 0.0;
+    foreach ($rubric as $section) {
+        foreach ($section['criteria'] as $criterion) {
+            $total += (float) $criterion['max'];
+        }
+    }
+    return $total;
+}
+
+function formatScore(float $score): string
+{
+    return rtrim(rtrim(number_format($score, 2), '0'), '.');
+}
+
+function gradeLabel(float $percentage): string
+{
+    return match (true) {
+        $percentage >= 90 => 'A+',
+        $percentage >= 80 => 'A',
+        $percentage >= 75 => 'A-',
+        $percentage >= 70 => 'B+',
+        $percentage >= 65 => 'B',
+        $percentage >= 60 => 'B-',
+        $percentage >= 55 => 'C+',
+        $percentage >= 50 => 'C',
+        $percentage >= 45 => 'C-',
+        $percentage >= 40 => 'D',
+        default => 'F',
+    };
+}
+
+function isAllowedRubricValue(array $criterion, string $value): bool
+{
+    return array_key_exists($value, $criterion['levels']);
+}
+
+function sectionScore(array $section, array $scores): float
+{
+    $total = 0.0;
+    foreach ($section['criteria'] as $criterion) {
+        $total += (float) ($scores[$criterion['id']] ?? 0);
+    }
+    return $total;
+}
+
+function sectionMax(array $section): float
+{
+    return array_sum(array_map(static fn($criterion) => (float) $criterion['max'], $section['criteria']));
+}
+
+function normalizeSavedMarks(?array $marks): ?array
+{
+    if ($marks === null) {
+        return null;
+    }
+
+    if (isset($marks['criteria_scores'])) {
+        return $marks;
+    }
+
+    if (isset($marks['total'])) {
+        $total = (float) $marks['total'];
+        return [
+            '_type' => 'legacy_marks',
+            'criteria_scores' => [],
+            'raw_total' => $total,
+            'max_total' => 100,
+            'percentage' => $total,
+            'saved_at' => $marks['saved_at'] ?? null,
+            'legacy' => true,
+        ];
+    }
+
+    return null;
+}
+
+$rubric = rubricDefinition();
+$criteriaById = flattenRubric($rubric);
+$rubricMaxTotal = rubricMaxTotal($rubric);
+
+$lecturerId = (int) ($_SESSION['user_id'] ?? 0);
+$lecturerName = trim((string) ($_SESSION['user_name'] ?? 'Lecturer'));
 $lecturerInitials = implode('', array_slice(array_map(
     static fn($part) => strtoupper(substr($part, 0, 1)),
     array_filter(preg_split('/\s+/', $lecturerName) ?: [])
 ), 0, 2)) ?: 'L';
 
 $flashMessage = '';
-$flashType    = 'success';
+$flashType = 'success';
 
-// ── Handle mark submission ──────────────────────────────────────────────────
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
-    $projectId     = (int) ($_POST['project_id']     ?? 0);
-    $markReport    = (int) ($_POST['mark_report']    ?? 0);
-    $markPresent   = (int) ($_POST['mark_present']   ?? 0);
-    $markImpl      = (int) ($_POST['mark_impl']      ?? 0);
-    $markSuper     = (int) ($_POST['mark_super']     ?? 0);
+    $projectId = (int) ($_POST['project_id'] ?? 0);
+    $postedScores = $_POST['rubric_scores'] ?? [];
+    $criteriaScores = [];
+    $valid = is_array($postedScores);
 
-    // Basic validation against schema caps
-    $valid =
-        $markReport  >= 0 && $markReport  <= 30 &&
-        $markPresent >= 0 && $markPresent <= 25 &&
-        $markImpl    >= 0 && $markImpl    <= 30 &&
-        $markSuper   >= 0 && $markSuper   <= 15;
+    if ($valid) {
+        foreach ($criteriaById as $criterionId => $criterion) {
+            $value = (string) ($postedScores[$criterionId] ?? '');
+            if (!isAllowedRubricValue($criterion, $value)) {
+                $valid = false;
+                break;
+            }
+            $criteriaScores[$criterionId] = (float) $value;
+        }
+    }
 
     if ($projectId > 0 && $valid && lecturerOwnsProject($db, $lecturerId, $projectId)) {
         try {
-            // We store marks as a JSON blob in the comments table (content_encrypted)
-            // with a special sentinel prefix so we can distinguish marks from regular comments.
-            // This avoids schema changes while keeping data encrypted at rest.
+            $rawTotal = array_sum($criteriaScores);
+            $percentage = $rubricMaxTotal > 0 ? round(($rawTotal / $rubricMaxTotal) * 100, 2) : 0;
+
             $payload = json_encode([
-                '_type'        => 'marks',
-                'report'       => $markReport,
-                'presentation' => $markPresent,
-                'implementation' => $markImpl,
-                'supervisor'   => $markSuper,
-                'total'        => $markReport + $markPresent + $markImpl + $markSuper,
-                'saved_at'     => date('Y-m-d H:i:s'),
+                '_type' => 'rubric_marks',
+                'criteria_scores' => $criteriaScores,
+                'raw_total' => $rawTotal,
+                'max_total' => $rubricMaxTotal,
+                'percentage' => $percentage,
+                'letter_grade' => gradeLabel($percentage),
+                'saved_at' => date('Y-m-d H:i:s'),
             ], JSON_THROW_ON_ERROR);
 
-            // Upsert: delete previous marks entry then insert fresh one
-            $delStmt = $db->prepare(
-                "DELETE FROM comments
-                 WHERE project_id = ? AND user_id = ?
-                   AND content_encrypted LIKE '%__marks__%'"
-            );
-            // We tag the encrypted blob with a unique searchable marker BEFORE encrypting
-            $tagged  = '__marks__' . $payload;
-            $enc     = encryptData($tagged);
-
-            // Delete old marks rows (match by decrypting is expensive; use a side-channel marker)
-            // Instead: just always insert — UI will show the latest one.
-            $insStmt = $db->prepare(
+            $stmt = $db->prepare(
                 'INSERT INTO comments (project_id, user_id, content_encrypted) VALUES (?, ?, ?)'
             );
-            $insStmt->execute([$projectId, $lecturerId, $enc]);
+            $stmt->execute([$projectId, $lecturerId, encryptData('__marks__' . $payload)]);
 
-            $flashMessage = 'Marks saved successfully!';
-            $flashType    = 'success';
+            $flashMessage = 'Rubric grades saved successfully.';
+            $flashType = 'success';
         } catch (Throwable $error) {
-            $flashMessage = 'Unable to save marks. Please try again.';
-            $flashType    = 'danger';
+            $flashMessage = 'Unable to save rubric grades. Please try again.';
+            $flashType = 'danger';
         }
     } else {
-        $flashMessage = 'Invalid marks or unauthorised project.';
-        $flashType    = 'danger';
+        $flashMessage = 'Invalid rubric grades or unauthorised project.';
+        $flashType = 'danger';
     }
 }
 
-// ── Fetch projects + their latest saved marks ───────────────────────────────
-$projects     = [];
+$projects = [];
 $statusLabels = ['pending' => 'Pending', 'approved' => 'Approved', 'rejected' => 'Rejected'];
 
 try {
     $stmt = $db->prepare(
-        "SELECT p.project_id, p.title_encrypted, p.study_year,
-                latest.status, latest.submitted_at
+        "SELECT p.project_id, p.title_encrypted, p.study_year, p.created_at,
+                s.submitted_at, s.status
          FROM projects p
-         LEFT JOIN LATERAL (
-             SELECT status, submitted_at
-             FROM submissions
-             WHERE submissions.project_id = p.project_id
+         LEFT JOIN submissions s ON s.submission_id = (
+             SELECT submission_id FROM submissions
+             WHERE project_id = p.project_id
              ORDER BY submitted_at DESC
              LIMIT 1
-         ) latest ON TRUE
+         )
          WHERE p.lecturer_id = ?
          ORDER BY p.project_id ASC"
     );
@@ -131,78 +612,67 @@ try {
          ORDER BY pm.role DESC, u.user_id ASC"
     );
 
-    // Fetch latest marks for each project (last comment from this lecturer tagged __marks__)
     $marksStmt = $db->prepare(
         "SELECT content_encrypted
          FROM comments
          WHERE project_id = ? AND user_id = ?
-         ORDER BY created_at DESC"
+         ORDER BY created_at DESC, comment_id DESC"
     );
 
     foreach ($projectRows as $row) {
-        // Students
         $studentStmt->execute([(int) $row['project_id']]);
         $students = [];
-        foreach ($studentStmt->fetchAll(PDO::FETCH_ASSOC) as $s) {
-            $name = decryptValue($s['name_encrypted'] ?? '');
-            if ($name !== '') $students[] = $name;
+        foreach ($studentStmt->fetchAll(PDO::FETCH_ASSOC) as $student) {
+            $name = decryptValue($student['name_encrypted'] ?? '');
+            if ($name !== '') {
+                $students[] = $name;
+            }
         }
 
-        // Marks
         $marks = null;
         $marksStmt->execute([(int) $row['project_id'], $lecturerId]);
-        foreach ($marksStmt->fetchAll(PDO::FETCH_ASSOC) as $cRow) {
+        foreach ($marksStmt->fetchAll(PDO::FETCH_ASSOC) as $commentRow) {
             try {
-                $dec = decryptData($cRow['content_encrypted']);
-                if (str_starts_with($dec, '__marks__')) {
-                    $json  = substr($dec, strlen('__marks__'));
-                    $marks = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+                $decrypted = decryptData($commentRow['content_encrypted']);
+                if (str_starts_with($decrypted, '__marks__')) {
+                    $marks = normalizeSavedMarks(json_decode(substr($decrypted, strlen('__marks__')), true, 512, JSON_THROW_ON_ERROR));
                     break;
                 }
-            } catch (Throwable $ignored) {}
+            } catch (Throwable $ignored) {
+            }
         }
 
         $projects[] = [
-            'id'           => (int) $row['project_id'],
-            'code'         => 'UTM-FYP-' . str_pad((string) $row['project_id'], 4, '0', STR_PAD_LEFT),
-            'title'        => decryptValue($row['title_encrypted'] ?? '') ?: 'No data available',
-            'study_year'   => $row['study_year'] ?? '',
-            'status'       => $row['status'] ?: 'pending',
+            'id' => (int) $row['project_id'],
+            'code' => 'UTM-FYP-' . str_pad((string) $row['project_id'], 4, '0', STR_PAD_LEFT),
+            'title' => decryptValue($row['title_encrypted'] ?? '') ?: 'No data available',
+            'study_year' => $row['study_year'] ?? '',
+            'status' => $row['status'] ?: 'pending',
             'submitted_at' => $row['submitted_at'] ?? null,
-            'students'     => $students,
-            'marks'        => $marks,
+            'students' => $students,
+            'marks' => $marks,
         ];
     }
 } catch (Throwable $error) {
     $flashMessage = $flashMessage ?: 'Unable to load grade data.';
-    $flashType    = 'danger';
+    $flashType = 'danger';
 }
 
-// Summary counts
-$totalProjects  = count($projects);
-$gradedProjects = count(array_filter($projects, static fn($p) => $p['marks'] !== null));
-$pendingGrades  = $totalProjects - $gradedProjects;
-$avgTotal       = $gradedProjects > 0
-    ? round(array_sum(array_map(static fn($p) => $p['marks']['total'] ?? 0,
-        array_filter($projects, static fn($p) => $p['marks'] !== null))) / $gradedProjects, 1)
+$totalProjects = count($projects);
+$gradedProjects = count(array_filter($projects, static fn($project) => $project['marks'] !== null));
+$pendingGrades = $totalProjects - $gradedProjects;
+$avgTotal = $gradedProjects > 0
+    ? round(array_sum(array_map(
+        static fn($project) => (float) ($project['marks']['percentage'] ?? 0),
+        array_filter($projects, static fn($project) => $project['marks'] !== null)
+    )) / $gradedProjects, 1)
     : 0;
-
-function gradeLabel(int $total): string {
-    return match (true) {
-        $total >= 90 => 'A+',  $total >= 80 => 'A',  $total >= 75 => 'A-',
-        $total >= 70 => 'B+',  $total >= 65 => 'B',  $total >= 60 => 'B-',
-        $total >= 55 => 'C+',  $total >= 50 => 'C',  $total >= 45 => 'C-',
-        $total >= 40 => 'D',   default       => 'F',
-    };
-}
 ?>
 <?php
 $lecturerHeaderSkipDashboardData = true;
 require_once __DIR__ . '/lecturer_header.php';
 ?>
         <div class="content">
-
-            <!-- Flash -->
             <?php if ($flashMessage): ?>
                 <div class="alert alert-<?= e($flashType) ?> alert-dismissible fade show" role="alert">
                     <?= e($flashMessage) ?>
@@ -210,15 +680,13 @@ require_once __DIR__ . '/lecturer_header.php';
                 </div>
             <?php endif; ?>
 
-            <!-- Page title -->
             <section class="d-flex align-items-start justify-content-between flex-wrap gap-3 mb-4">
                 <div>
-                    <h1 class="h3 fw-bold mb-1" style="color:var(--lecturer-maroon);">Final Grades</h1>
-                    <p class="text-muted mb-0">Assign and manage marks for each project submission</p>
+                    <h1 class="h3 fw-bold mb-1" style="color:var(--lecturer-maroon);">Rubric Grades</h1>
+                    <p class="text-muted mb-0">Grade projects using the proposal, sprint review, final product, and poster rubric.</p>
                 </div>
             </section>
 
-            <!-- Stats row -->
             <div class="row g-4 mb-4">
                 <div class="col-12 col-sm-6 col-xl-3">
                     <article class="stat-card">
@@ -259,7 +727,7 @@ require_once __DIR__ . '/lecturer_header.php';
                             <div>
                                 <p class="text-muted fw-semibold mb-2">Class Average</p>
                                 <strong class="stat-value" style="color:var(--lecturer-maroon);">
-                                    <?= $gradedProjects > 0 ? e($avgTotal) : '—' ?>
+                                    <?= $gradedProjects > 0 ? e($avgTotal . '%') : '-' ?>
                                 </strong>
                             </div>
                             <div class="stat-icon"><i class="bi bi-bar-chart-line-fill"></i></div>
@@ -268,7 +736,6 @@ require_once __DIR__ . '/lecturer_header.php';
                 </div>
             </div>
 
-            <!-- Toolbar -->
             <section class="toolbar mb-4">
                 <div class="row g-3 align-items-center">
                     <div class="col-12 col-lg">
@@ -277,7 +744,7 @@ require_once __DIR__ . '/lecturer_header.php';
                                 <i class="bi bi-search"></i>
                             </span>
                             <input id="gradeSearch" class="form-control search-control border-start-0"
-                                   type="search" placeholder="Search project or student name…">
+                                   type="search" placeholder="Search project or student name...">
                         </div>
                     </div>
                     <div class="col-12 col-sm-6 col-lg-3">
@@ -290,15 +757,14 @@ require_once __DIR__ . '/lecturer_header.php';
                     <div class="col-12 col-sm-6 col-lg-3">
                         <select id="yearFilter" class="form-select search-control">
                             <option value="all">All Study Years</option>
-                            <?php foreach (array_unique(array_filter(array_column($projects, 'study_year'))) as $yr): ?>
-                                <option value="<?= e($yr) ?>">Year <?= e($yr) ?></option>
+                            <?php foreach (array_unique(array_filter(array_column($projects, 'study_year'))) as $year): ?>
+                                <option value="<?= e($year) ?>">Year <?= e($year) ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
                 </div>
             </section>
 
-            <!-- Grade cards -->
             <?php if (!$projects): ?>
                 <div class="empty-state">
                     <div><i class="bi bi-star fs-2 d-block mb-2"></i>No projects found for grading.</div>
@@ -306,10 +772,13 @@ require_once __DIR__ . '/lecturer_header.php';
             <?php else: ?>
                 <div class="row g-4" id="gradeGrid">
                     <?php foreach ($projects as $project):
-                        $marks      = $project['marks'];
-                        $isGraded   = $marks !== null;
-                        $total      = $isGraded ? (int)($marks['total'] ?? 0) : 0;
-                        $grade      = $isGraded ? gradeLabel($total) : null;
+                        $marks = $project['marks'];
+                        $isGraded = $marks !== null;
+                        $percentage = $isGraded ? (float) ($marks['percentage'] ?? 0) : 0;
+                        $rawTotal = $isGraded ? (float) ($marks['raw_total'] ?? 0) : 0;
+                        $maxTotal = $isGraded ? (float) ($marks['max_total'] ?? $rubricMaxTotal) : $rubricMaxTotal;
+                        $grade = $isGraded ? gradeLabel($percentage) : null;
+                        $scores = $isGraded ? ($marks['criteria_scores'] ?? []) : [];
                         $searchText = strtolower($project['title'] . ' ' . implode(' ', $project['students']));
                     ?>
                     <div class="col-12 col-lg-6 col-xxl-4 grade-item"
@@ -317,8 +786,6 @@ require_once __DIR__ . '/lecturer_header.php';
                          data-year="<?= e($project['study_year']) ?>"
                          data-search="<?= e($searchText) ?>">
                         <article class="grade-card">
-
-                            <!-- Card header -->
                             <div class="d-flex align-items-start justify-content-between gap-3 mb-3">
                                 <div class="grade-badge grade-<?= $isGraded ? e($grade) : 'ungraded' ?>">
                                     <?= $isGraded ? e($grade) : '?' ?>
@@ -332,45 +799,38 @@ require_once __DIR__ . '/lecturer_header.php';
                                 </span>
                             </div>
 
-                            <!-- Students -->
                             <div class="mb-3" style="font-size:.875rem; color:var(--lecturer-text); line-height:1.7;">
                                 <strong><?= e(count($project['students'])) ?> Student<?= count($project['students']) !== 1 ? 's' : '' ?></strong>
-                                <?php foreach ($project['students'] as $idx => $sname): ?>
-                                    <div><?= e($idx + 1) ?>. <?= e($sname) ?></div>
+                                <?php foreach ($project['students'] as $index => $studentName): ?>
+                                    <div><?= e($index + 1) ?>. <?= e($studentName) ?></div>
                                 <?php endforeach; ?>
                                 <?php if (empty($project['students'])): ?>
                                     <div class="text-muted">No students listed</div>
                                 <?php endif; ?>
                             </div>
 
-                            <!-- Mark breakdown (only if graded) -->
                             <?php if ($isGraded): ?>
                                 <div class="mb-3">
-                                    <div class="mark-row">
-                                        <span class="mark-label">Report <small class="text-muted">/30</small></span>
-                                        <div class="mark-bar-wrap"><div class="mark-bar" style="width:<?= round(($marks['report']/30)*100) ?>%"></div></div>
-                                        <span class="mark-score"><?= e($marks['report']) ?></span>
-                                    </div>
-                                    <div class="mark-row">
-                                        <span class="mark-label">Presentation <small class="text-muted">/25</small></span>
-                                        <div class="mark-bar-wrap"><div class="mark-bar" style="width:<?= round(($marks['presentation']/25)*100) ?>%"></div></div>
-                                        <span class="mark-score"><?= e($marks['presentation']) ?></span>
-                                    </div>
-                                    <div class="mark-row">
-                                        <span class="mark-label">Implementation <small class="text-muted">/30</small></span>
-                                        <div class="mark-bar-wrap"><div class="mark-bar" style="width:<?= round(($marks['implementation']/30)*100) ?>%"></div></div>
-                                        <span class="mark-score"><?= e($marks['implementation']) ?></span>
-                                    </div>
-                                    <div class="mark-row">
-                                        <span class="mark-label">Supervisor <small class="text-muted">/15</small></span>
-                                        <div class="mark-bar-wrap"><div class="mark-bar" style="width:<?= round(($marks['supervisor']/15)*100) ?>%"></div></div>
-                                        <span class="mark-score"><?= e($marks['supervisor']) ?></span>
-                                    </div>
+                                    <?php if (!empty($marks['legacy'])): ?>
+                                        <div class="mb-2 text-muted" style="font-size:.82rem;">Legacy marks saved before rubric grading was added.</div>
+                                    <?php else: ?>
+                                        <?php foreach ($rubric as $section):
+                                            $sectionMax = sectionMax($section);
+                                            $sectionScore = sectionScore($section, $scores);
+                                            $width = $sectionMax > 0 ? round(($sectionScore / $sectionMax) * 100) : 0;
+                                        ?>
+                                            <div class="mark-row">
+                                                <span class="mark-label"><?= e($section['title']) ?> <small class="text-muted">/<?= e(formatScore($sectionMax)) ?></small></span>
+                                                <div class="mark-bar-wrap"><div class="mark-bar" style="width:<?= e($width) ?>%"></div></div>
+                                                <span class="mark-score"><?= e(formatScore($sectionScore)) ?></span>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
                                     <div class="d-flex align-items-center justify-content-between mt-2 pt-2"
                                          style="border-top:1px solid var(--lecturer-border);">
-                                        <span class="text-muted" style="font-size:.82rem;">Total / 100</span>
+                                        <span class="text-muted" style="font-size:.82rem;">Total <?= e(formatScore($rawTotal)) ?> / <?= e(formatScore($maxTotal)) ?></span>
                                         <strong style="font-size:1.1rem; color:var(--lecturer-maroon);">
-                                            <?= e($total) ?> — <?= e($grade) ?>
+                                            <?= e(formatScore($percentage)) ?>% - <?= e($grade) ?>
                                         </strong>
                                     </div>
                                     <?php if (!empty($marks['saved_at'])): ?>
@@ -382,11 +842,10 @@ require_once __DIR__ . '/lecturer_header.php';
                             <?php else: ?>
                                 <div class="mb-3 p-3 text-center text-muted"
                                      style="background:#f8f9fc; border:1px dashed var(--lecturer-border); border-radius:10px; font-size:.875rem;">
-                                    <i class="bi bi-pencil-square me-1"></i>No marks assigned yet
+                                    <i class="bi bi-pencil-square me-1"></i>No rubric grades assigned yet
                                 </div>
                             <?php endif; ?>
 
-                            <!-- Actions -->
                             <div class="action-row">
                                 <button class="btn btn-assign"
                                         type="button"
@@ -394,12 +853,9 @@ require_once __DIR__ . '/lecturer_header.php';
                                         data-bs-target="#marksModal"
                                         data-project-id="<?= e($project['id']) ?>"
                                         data-project-title="<?= e($project['title']) ?>"
-                                        data-mark-report="<?= e($marks['report'] ?? '') ?>"
-                                        data-mark-present="<?= e($marks['presentation'] ?? '') ?>"
-                                        data-mark-impl="<?= e($marks['implementation'] ?? '') ?>"
-                                        data-mark-super="<?= e($marks['supervisor'] ?? '') ?>">
+                                        data-scores="<?= e(json_encode($scores)) ?>">
                                     <i class="bi bi-pencil-fill me-1"></i>
-                                    <?= $isGraded ? 'Edit Marks' : 'Assign Marks' ?>
+                                    <?= $isGraded ? 'Edit Rubric' : 'Grade Rubric' ?>
                                 </button>
                                 <a class="btn btn-view" href="lecturer_submissions.php">
                                     <i class="bi bi-eye me-1"></i>View Submission
@@ -411,18 +867,17 @@ require_once __DIR__ . '/lecturer_header.php';
                 </div>
                 <div class="empty-state d-none mt-4" id="filteredEmpty">No projects match your filters.</div>
             <?php endif; ?>
-        </div><!-- /content -->
+        </div>
     </main>
-</div><!-- /lecturer-shell -->
+</div>
 
-<!-- ── Assign Marks Modal ── -->
 <div class="modal fade" id="marksModal" tabindex="-1" aria-labelledby="marksModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered" style="max-width:500px;">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
         <form class="modal-content" method="post" id="marksForm">
             <div class="modal-header">
                 <div>
-                    <h2 class="h5 fw-bold mb-1" id="marksModalLabel" style="color:var(--lecturer-maroon);">Assign Marks</h2>
-                    <p class="text-muted small mb-0" id="marksProjectTitle">Enter marks for each component</p>
+                    <h2 class="h5 fw-bold mb-1" id="marksModalLabel" style="color:var(--lecturer-maroon);">Rubric Grades</h2>
+                    <p class="text-muted small mb-0" id="marksProjectTitle">Select a rubric level for each criterion.</p>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
@@ -430,52 +885,54 @@ require_once __DIR__ . '/lecturer_header.php';
             <div class="modal-body">
                 <input type="hidden" name="project_id" id="marksProjectId">
 
-                <div class="row g-3 mb-3">
-                    <div class="col-6">
-                        <div class="mark-input-group">
-                            <label for="markReport">Report</label>
-                            <input type="number" id="markReport" name="mark_report"
-                                   class="form-control" min="0" max="30"
-                                   placeholder="0 – 30" required>
-                            <div class="mark-cap">Maximum: 30 marks</div>
+                <div class="row g-3">
+                    <?php foreach ($rubric as $section):
+                        $sectionMax = sectionMax($section);
+                    ?>
+                        <div class="col-12 col-xl-6">
+                            <section class="p-3 h-100" style="border:1px solid var(--lecturer-border); border-radius:12px; background:#fbfcfe;">
+                                <div class="d-flex align-items-start justify-content-between gap-3 mb-3">
+                                    <div>
+                                        <h3 class="h6 fw-bold mb-1" style="color:var(--lecturer-maroon);"><?= e($section['title']) ?></h3>
+                                        <div class="text-muted" style="font-size:.78rem;"><?= e($section['subtitle']) ?></div>
+                                    </div>
+                                    <span class="status-badge status-pending"><?= e(formatScore($sectionMax)) ?> pts</span>
+                                </div>
+
+                                <div class="row g-3">
+                                    <?php foreach ($section['criteria'] as $criterion): ?>
+                                        <div class="col-12">
+                                            <div class="mark-input-group">
+                                                <label for="score_<?= e($criterion['id']) ?>"><?= e($criterion['label']) ?></label>
+                                                <select class="form-select rubric-score"
+                                                        id="score_<?= e($criterion['id']) ?>"
+                                                        name="rubric_scores[<?= e($criterion['id']) ?>]"
+                                                        data-max="<?= e($criterion['max']) ?>"
+                                                        required>
+                                                    <option value="">Choose level</option>
+                                                    <?php foreach ($criterion['levels'] as $value => $label): ?>
+                                                        <option value="<?= e($value) ?>"><?= e(formatScore((float) $value)) ?> / <?= e(formatScore((float) $criterion['max'])) ?> - <?= e($label) ?></option>
+                                                    <?php endforeach; ?>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            </section>
                         </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="mark-input-group">
-                            <label for="markPresent">Presentation</label>
-                            <input type="number" id="markPresent" name="mark_present"
-                                   class="form-control" min="0" max="25"
-                                   placeholder="0 – 25" required>
-                            <div class="mark-cap">Maximum: 25 marks</div>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="mark-input-group">
-                            <label for="markImpl">Implementation</label>
-                            <input type="number" id="markImpl" name="mark_impl"
-                                   class="form-control" min="0" max="30"
-                                   placeholder="0 – 30" required>
-                            <div class="mark-cap">Maximum: 30 marks</div>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="mark-input-group">
-                            <label for="markSuper">Supervisor</label>
-                            <input type="number" id="markSuper" name="mark_super"
-                                   class="form-control" min="0" max="15"
-                                   placeholder="0 – 15" required>
-                            <div class="mark-cap">Maximum: 15 marks</div>
-                        </div>
-                    </div>
+                    <?php endforeach; ?>
                 </div>
 
-                <!-- Live total preview -->
-                <div class="total-preview">
+                <div class="total-preview mt-3">
                     <div>
-                        <div class="tp-label">Total Score / 100</div>
-                        <div class="tp-value" id="totalPreview">0</div>
+                        <div class="tp-label">Raw Score / <?= e(formatScore($rubricMaxTotal)) ?></div>
+                        <div class="tp-value" id="rawPreview">0</div>
                     </div>
-                    <span class="tp-grade status-badge" id="gradePreview" style="font-size:1rem;">—</span>
+                    <div class="text-end">
+                        <div class="tp-label">Normalized Score / 100</div>
+                        <div class="tp-value" id="totalPreview">0%</div>
+                    </div>
+                    <span class="tp-grade status-badge" id="gradePreview" style="font-size:1rem;">-</span>
                 </div>
             </div>
 
@@ -483,7 +940,7 @@ require_once __DIR__ . '/lecturer_header.php';
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
                 <button type="submit" class="btn fw-bold"
                         style="background:var(--lecturer-maroon);color:#fff;border-radius:10px;padding:10px 24px;">
-                    <i class="bi bi-save me-1"></i>Save Marks
+                    <i class="bi bi-save me-1"></i>Save Rubric Grades
                 </button>
             </div>
         </form>
@@ -492,46 +949,53 @@ require_once __DIR__ . '/lecturer_header.php';
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-// ── Filter / search ──
-const searchInput  = document.getElementById('gradeSearch');
-const gradeFilter  = document.getElementById('gradeFilter');
-const yearFilter   = document.getElementById('yearFilter');
-const items        = Array.from(document.querySelectorAll('.grade-item'));
-const emptyDiv     = document.getElementById('filteredEmpty');
+const searchInput = document.getElementById('gradeSearch');
+const gradeFilter = document.getElementById('gradeFilter');
+const yearFilter = document.getElementById('yearFilter');
+const items = Array.from(document.querySelectorAll('.grade-item'));
+const emptyDiv = document.getElementById('filteredEmpty');
+const rubricMaxTotal = <?= json_encode($rubricMaxTotal) ?>;
 
 function applyFilters() {
-    const query  = (searchInput?.value || '').trim().toLowerCase();
-    const graded = gradeFilter?.value  || 'all';
-    const year   = yearFilter?.value   || 'all';
-    let visible  = 0;
+    const query = (searchInput?.value || '').trim().toLowerCase();
+    const graded = gradeFilter?.value || 'all';
+    const year = yearFilter?.value || 'all';
+    let visible = 0;
+
     items.forEach(item => {
-        const show = (!query  || item.dataset.search.includes(query))
-                  && (graded === 'all' || item.dataset.graded === graded)
-                  && (year   === 'all' || item.dataset.year   === year);
+        const show = (!query || item.dataset.search.includes(query))
+            && (graded === 'all' || item.dataset.graded === graded)
+            && (year === 'all' || item.dataset.year === year);
         item.classList.toggle('d-none', !show);
         if (show) visible++;
     });
+
     emptyDiv?.classList.toggle('d-none', visible !== 0);
 }
+
 searchInput?.addEventListener('input', applyFilters);
 gradeFilter?.addEventListener('change', applyFilters);
 yearFilter?.addEventListener('change', applyFilters);
 
-// ── Modal population ──
-document.getElementById('marksModal')?.addEventListener('show.bs.modal', (e) => {
-    const btn = e.relatedTarget;
-    document.getElementById('marksProjectId').value     = btn?.dataset.projectId    || '';
-    document.getElementById('marksProjectTitle').textContent = btn?.dataset.projectTitle || '';
-    document.getElementById('markReport').value  = btn?.dataset.markReport  || '';
-    document.getElementById('markPresent').value = btn?.dataset.markPresent || '';
-    document.getElementById('markImpl').value    = btn?.dataset.markImpl    || '';
-    document.getElementById('markSuper').value   = btn?.dataset.markSuper   || '';
+document.getElementById('marksModal')?.addEventListener('show.bs.modal', event => {
+    const button = event.relatedTarget;
+    const scores = JSON.parse(button?.dataset.scores || '{}');
+
+    document.getElementById('marksProjectId').value = button?.dataset.projectId || '';
+    document.getElementById('marksProjectTitle').textContent = button?.dataset.projectTitle || '';
+
+    document.querySelectorAll('.rubric-score').forEach(select => {
+        const criterionId = select.name.match(/\[(.+)\]/)?.[1] || '';
+        const savedScore = scores[criterionId];
+        select.value = savedScore === undefined ? '' : String(savedScore);
+    });
+
     updateTotal();
 });
 
-// ── Live total + grade preview ──
-const inputs = ['markReport','markPresent','markImpl','markSuper'];
-inputs.forEach(id => document.getElementById(id)?.addEventListener('input', updateTotal));
+document.querySelectorAll('.rubric-score').forEach(select => {
+    select.addEventListener('change', updateTotal);
+});
 
 function gradeLabel(total) {
     if (total >= 90) return 'A+';
@@ -549,28 +1013,42 @@ function gradeLabel(total) {
 
 function gradeClass(grade) {
     const map = {
-        'A+':'status-approved','A':'status-approved','A-':'status-approved',
-        'B+':'status-pending','B':'status-pending','B-':'status-pending',
-        'C+':'status-pending','C':'status-pending','C-':'status-pending',
-        'D':'status-rejected','F':'status-rejected'
+        'A+': 'status-approved',
+        'A': 'status-approved',
+        'A-': 'status-approved',
+        'B+': 'status-pending',
+        'B': 'status-pending',
+        'B-': 'status-pending',
+        'C+': 'status-pending',
+        'C': 'status-pending',
+        'C-': 'status-pending',
+        'D': 'status-rejected',
+        'F': 'status-rejected'
     };
     return map[grade] || '';
 }
 
-function updateTotal() {
-    const r = Math.min(parseInt(document.getElementById('markReport')?.value  || 0, 10), 30);
-    const p = Math.min(parseInt(document.getElementById('markPresent')?.value || 0, 10), 25);
-    const i = Math.min(parseInt(document.getElementById('markImpl')?.value    || 0, 10), 30);
-    const s = Math.min(parseInt(document.getElementById('markSuper')?.value   || 0, 10), 15);
-    const total = (isNaN(r)?0:r) + (isNaN(p)?0:p) + (isNaN(i)?0:i) + (isNaN(s)?0:s);
-    const grade = gradeLabel(total);
+function formatScore(score) {
+    return Number(score.toFixed(2)).toString();
+}
 
-    const tv = document.getElementById('totalPreview');
-    const gv = document.getElementById('gradePreview');
-    if (tv) tv.textContent = total;
-    if (gv) {
-        gv.textContent = grade;
-        gv.className   = 'tp-grade status-badge ' + gradeClass(grade);
+function updateTotal() {
+    let rawTotal = 0;
+    document.querySelectorAll('.rubric-score').forEach(select => {
+        rawTotal += parseFloat(select.value || '0') || 0;
+    });
+
+    const percentage = rubricMaxTotal > 0 ? (rawTotal / rubricMaxTotal) * 100 : 0;
+    const grade = gradeLabel(percentage);
+    const rawPreview = document.getElementById('rawPreview');
+    const totalPreview = document.getElementById('totalPreview');
+    const gradePreview = document.getElementById('gradePreview');
+
+    if (rawPreview) rawPreview.textContent = formatScore(rawTotal);
+    if (totalPreview) totalPreview.textContent = formatScore(percentage) + '%';
+    if (gradePreview) {
+        gradePreview.textContent = grade;
+        gradePreview.className = 'tp-grade status-badge ' + gradeClass(grade);
     }
 }
 </script>
